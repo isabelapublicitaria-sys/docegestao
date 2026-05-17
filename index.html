@@ -2820,6 +2820,7 @@ async function loadUserProfile(user) {
   if (!sbClient) return;
   try {
     const uid = user.id;
+
     const [prods, clientes, vendas, receitas, metas, insumos, perfil] = await Promise.all([
       sbClient.from('produtos').select('*').eq('user_id', uid),
       sbClient.from('clientes').select('*').eq('user_id', uid),
@@ -2829,33 +2830,72 @@ async function loadUserProfile(user) {
       sbClient.from('insumos').select('*').eq('user_id', uid),
       sbClient.from('perfis').select('*').eq('user_id', uid).maybeSingle(),
     ]);
-    // Só sobrescreve local se Supabase retornou dados (evita apagar dados não sincronizados)
-    if (prods.data    && prods.data.length    > 0) db.produtos = prods.data;
-    if (clientes.data && clientes.data.length > 0) db.clientes = clientes.data;
-    if (vendas.data   && vendas.data.length   > 0) db.vendas   = vendas.data.map(v => ({
-      ...v, itens: parseItens(v.itens)
-    }));
-    if (receitas.data && receitas.data.length > 0) db.receitas = receitas.data.map(r => ({
+
+    // Sempre reseta dados locais com os dados do usuário logado
+    db.produtos = prods.data    || [];
+    db.clientes = clientes.data || [];
+    db.vendas   = (vendas.data  || []).map(v => ({ ...v, itens: parseItens(v.itens) }));
+    db.receitas = (receitas.data|| []).map(r => ({
       ...r,
       insumos_lista: typeof r.insumos_lista === 'string'
         ? (() => { try { return JSON.parse(r.insumos_lista); } catch(e) { return []; } })()
         : (r.insumos_lista || [])
     }));
-    if (metas.data   && metas.data.length   > 0) db.metas   = metas.data;
-    if (insumos.data && insumos.data.length > 0) db.insumos = insumos.data;
-    if (perfil.data) db.config = { ...db.config, ...perfil.data };
+    db.metas   = metas.data    || [];
+    db.insumos = insumos.data  || [];
+
+    if (perfil.data) {
+      // Perfil existe — usa os dados do banco
+      db.config = {
+        ...db.config,
+        ...perfil.data,
+        nome:    perfil.data.nome    || user.email?.split('@')[0] || '',
+        empresa: perfil.data.empresa || '',
+        email:   user.email || '',
+      };
+    } else {
+      // Perfil não existe — cria um novo perfil limpo para este usuário
+      console.log('Novo usuário detectado — criando perfil...');
+      db.config = {
+        nome:        user.email?.split('@')[0] || '',
+        empresa:     '',
+        tel:         '',
+        cidade:      '',
+        estado:      '',
+        email:       user.email || '',
+        loja_aberta: false,
+        pag_dinheiro: true,
+        pag_pix:     true,
+        pag_cred:    false,
+        pag_deb:     false,
+        pag_entrega: true,
+        prolabore:   0,
+        horasMes:    160,
+      };
+      // Cria o perfil no Supabase
+      await sbClient.from('perfis').insert({
+        user_id: uid,
+        nome:    db.config.nome,
+        empresa: '',
+        loja_aberta: false,
+        pag_dinheiro: true,
+        pag_pix: true,
+        pag_cred: false,
+        pag_deb: false,
+        pag_entrega: true,
+      });
+    }
+
     saveDB();
   } catch(e) {
     console.warn('Supabase load error:', e.message);
   }
 }
 
-const LOJA_UID_FIXO = '03eb7fd3-a4aa-42fc-9e49-d400095b069a'; // UID da isabela.publicitaria@gmail.com
-
 async function getUID() {
-  if (!sbClient) return LOJA_UID_FIXO;
+  if (!sbClient) return null;
   const { data } = await sbClient.auth.getUser();
-  return data?.user?.id || LOJA_UID_FIXO;
+  return data?.user?.id || null;
 }
 
 async function syncSupabase(table, record, isDelete = false) {
@@ -4795,7 +4835,8 @@ async function salvarConfig() {
   saveDB();
   document.getElementById('company-name').textContent = db.config.empresa || 'Minha Confeitaria';
 
-  const uid = LOJA_UID_FIXO;
+  const uid = await getUID();
+  if (!uid) { toast('Erro: usuário não identificado','error'); return; }
   const payload = {
     user_id:   uid,
     nome:      db.config.nome      || '',
@@ -4907,7 +4948,7 @@ function renderHorarioDia(h) {
   </div>`;
 }
 
-function toggleLojaStatus() {
+async function toggleLojaStatus() {
   const btn = document.getElementById('tog-loja-aberta');
   btn.classList.toggle('on');
   const aberta = btn.classList.contains('on');
@@ -4916,7 +4957,8 @@ function toggleLojaStatus() {
   document.getElementById('loja-status-label').textContent = aberta ? 'Aberta' : 'Fechada';
   document.getElementById('loja-status-label').style.color = aberta ? '#2e7d32' : 'var(--text-lt)';
   // Salva via REST
-  fetch(`https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/perfis?user_id=eq.${LOJA_UID_FIXO}`,
+  const _uid1 = await getUID();
+  fetch(`https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/perfis?user_id=eq.${_uid1}`,
     { method:'PATCH', headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json','Prefer':'return=minimal'},
       body: JSON.stringify({ loja_aberta: aberta }) }
   ).then(r => toast(aberta ? '🟢 Loja aberta!' : '🔴 Loja fechada!', 'success'));
@@ -4925,8 +4967,10 @@ function toggleLojaStatus() {
 async function carregarConfig() {
   // Busca config atualizada do Supabase antes de renderizar
   try {
+    const uid = await getUID();
+    if (!uid) return;
     const res = await fetch(
-      `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/perfis?user_id=eq.${LOJA_UID_FIXO}&select=*&limit=1`,
+      `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/perfis?user_id=eq.${uid}&select=*&limit=1`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     if (res.ok) {
@@ -5171,7 +5215,8 @@ async function salvarPagConfig() {
   saveDB();
 
   // Salva direto via REST (contorna problemas de RLS do sbClient)
-  const uid = LOJA_UID_FIXO;
+  const uid = await getUID();
+  if (!uid) { toast("Erro: usuário não identificado","error"); return; }
   const payload = {
     user_id:     uid,
     pix_chave:   db.config.pix_chave,
