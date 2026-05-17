@@ -808,8 +808,8 @@ function renderClientes2() {
 
   wrap.innerHTML = `<table>
     <thead><tr>
-      <th>Cliente</th><th>Confeitaria</th><th>Plano</th>
-      <th>Vencimento</th><th>Status DB</th><th>Diagnóstico</th><th>Ações</th>
+      <th>Confeitaria</th><th>Responsável</th><th>Telefone</th>
+      <th>Plano</th><th>Vencimento</th><th>Diagnóstico</th><th>Ações</th>
     </tr></thead>
     <tbody>
     ${lista.map(p => {
@@ -834,13 +834,13 @@ function renderClientes2() {
 
       return `<tr>
         <td>
-          <div style="font-weight:600;color:var(--choco)">${p.nome || '(sem nome)'}</div>
+          <div style="font-weight:700;color:var(--choco)">${p.empresa || '(sem nome)'}</div>
           <div style="font-size:.7rem;color:var(--text3);font-family:monospace">${(p.user_id||'').slice(0,16)}...</div>
         </td>
-        <td>${p.empresa || '—'}</td>
+        <td style="font-size:.85rem;color:var(--text)">${p.nome||'—'}</td>
+        <td style="font-size:.83rem;color:var(--text2)">${p.tel||'—'}</td>
         <td><span class="plan-badge ${info.cls}">${info.icon} ${info.label}</span></td>
         <td>${vencBadge}</td>
-        <td>${diag.dbStats}</td>
         <td>${diagBadge}</td>
         <td>
           <button class="btn-sm2 ghost" onclick="abrirCliente('${p.user_id}')">🔍 Detalhes</button>
@@ -880,15 +880,25 @@ async function abrirCliente(userId) {
   if (!p) return;
   clienteAtual = p;
 
-  document.getElementById('mc2-nome').textContent  = p.nome || p.empresa || 'Sem nome';
-  document.getElementById('mc2-email').textContent = `ID: ${p.user_id}`;
+  document.getElementById('mc2-nome').textContent  = p.empresa || p.nome || 'Sem nome';
+  document.getElementById('mc2-email').textContent = p.nome || '—';
 
   const pl   = getPlanoPerfil(p);
   const info = getPlanoInfo(pl.plano);
   const dias = diasParaVencer(pl.vencimento);
 
-  // Plano info cards
+  // Dados completos do cliente
   document.getElementById('mc2-plano-info').innerHTML = `
+    <div class="info-box" style="grid-column:1/-1">
+      <div class="info-box-label">Dados da Confeitaria</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+        <div><div style="font-size:.65rem;color:var(--text3);margin-bottom:2px">CONFEITARIA</div><div style="font-weight:700;color:var(--choco)">${p.empresa||'—'}</div></div>
+        <div><div style="font-size:.65rem;color:var(--text3);margin-bottom:2px">RESPONSÁVEL</div><div style="font-weight:700;color:var(--choco)">${p.nome||'—'}</div></div>
+        <div><div style="font-size:.65rem;color:var(--text3);margin-bottom:2px">TELEFONE</div><div style="font-weight:600;color:var(--choco)">${p.tel||'—'}</div></div>
+        <div><div style="font-size:.65rem;color:var(--text3);margin-bottom:2px">CIDADE</div><div style="font-weight:600;color:var(--choco)">${p.cidade ? p.cidade+(p.estado?', '+p.estado:'') : '—'}</div></div>
+        <div style="grid-column:1/-1"><div style="font-size:.65rem;color:var(--text3);margin-bottom:2px">USER ID</div><div style="font-family:monospace;font-size:.72rem;color:var(--text3)">${p.user_id}</div></div>
+      </div>
+    </div>
     <div class="info-box">
       <div class="info-box-label">Plano atual</div>
       <div class="info-box-val"><span class="plan-badge ${info.cls}">${info.icon} ${info.label}</span></div>
@@ -900,6 +910,12 @@ async function abrirCliente(userId) {
     <div class="info-box">
       <div class="info-box-label">Status</div>
       <div class="info-box-val">${isVencido(pl.vencimento) ? '<span style="color:var(--red)">⚠ Vencido</span>' : dias!==null&&dias<=7 ? `<span style="color:var(--amber)">⏳ ${dias} dias</span>` : '<span style="color:var(--green)">✓ Ativo</span>'}</div>
+    </div>
+    <div class="info-box">
+      <div class="info-box-label">Link do Cardápio</div>
+      <div class="info-box-val" style="font-size:.72rem">
+        <a href="https://isabelapublicitaria-sys.github.io/docegestao/cardapio.html?id=${p.user_id}" target="_blank" style="color:var(--caramel);word-break:break-all">Ver cardápio →</a>
+      </div>
     </div>`;
 
   // Preenche selects

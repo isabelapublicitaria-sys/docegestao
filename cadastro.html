@@ -413,26 +413,27 @@ async function doCadastro() {
     const { data, error } = await sb.auth.signUp({ email, password: pass });
     if (error) throw error;
 
-    const uid = data.user?.id;
+    const uid     = data.user?.id;
+    const userJWT = data.session?.access_token || SUPABASE_KEY;
     if (!uid) throw new Error('Erro ao criar usuário');
 
-    // 2. Cria perfil na tabela perfis
-    await fetch(
+    // 2. Cria perfil na tabela perfis (usa JWT do usuário recém-criado)
+    const resPerfil = await fetch(
       `${SUPABASE_URL}/rest/v1/perfis`,
       {
         method: 'POST',
         headers: {
           'apikey':       SUPABASE_KEY,
-          'Authorization':`Bearer ${SUPABASE_KEY}`,
+          'Authorization':`Bearer ${userJWT}`,
           'Content-Type': 'application/json',
           'Prefer':       'return=minimal',
         },
         body: JSON.stringify({
-          user_id:     uid,
+          user_id:      uid,
           nome,
           empresa,
           tel,
-          loja_aberta: false, // começa fechada até configurar
+          loja_aberta:  false,
           pag_dinheiro: true,
           pag_pix:      true,
           pag_cred:     false,
@@ -441,21 +442,27 @@ async function doCadastro() {
         }),
       }
     );
+    if (!resPerfil.ok) {
+      const errTxt = await resPerfil.text();
+      console.warn('Erro ao criar perfil:', errTxt);
+    } else {
+      console.log('✅ Perfil criado para:', uid);
+    }
 
     // 3. Registra plano no admin_planos
     const venc = new Date();
     if (planoSelecionado !== 'gratis') {
-      venc.setDate(venc.getDate() + 7); // 7 dias de trial para planos pagos
+      venc.setDate(venc.getDate() + 7);
     } else {
-      venc.setFullYear(venc.getFullYear() + 10); // grátis por 10 anos
+      venc.setFullYear(venc.getFullYear() + 10);
     }
-    await fetch(
+    const resPlano = await fetch(
       `${SUPABASE_URL}/rest/v1/admin_planos`,
       {
         method: 'POST',
         headers: {
           'apikey':       SUPABASE_KEY,
-          'Authorization':`Bearer ${SUPABASE_KEY}`,
+          'Authorization':`Bearer ${userJWT}`,
           'Content-Type': 'application/json',
           'Prefer':       'return=minimal',
         },
@@ -466,6 +473,8 @@ async function doCadastro() {
         }),
       }
     );
+    if (!resPlano.ok) console.warn('Erro ao criar plano:', await resPlano.text());
+    else console.log('✅ Plano criado:', planoSelecionado);
 
     // Sucesso!
     document.getElementById('main-screen').style.display = 'none';

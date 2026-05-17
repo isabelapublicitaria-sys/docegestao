@@ -1006,7 +1006,10 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 // ATENÇÃO: preencha o user_id do dono da confeitaria
 // (copie do painel Supabase → Authentication → Users)
 // ════════════════════════════════════════
-const LOJA_USER_ID = '03eb7fd3-a4aa-42fc-9e49-d400095b069a';
+// Pega o ID da confeitaria pela URL: cardapio.html?id=UUID
+// Se não informado, usa o UID padrão (para compatibilidade)
+const URL_PARAMS    = new URLSearchParams(window.location.search);
+const LOJA_USER_ID  = URL_PARAMS.get('id') || '03eb7fd3-a4aa-42fc-9e49-d400095b069a';
 
 // WhatsApp da confeitaria (só números com DDI)
 const WHATSAPP_NUM = '5531997224483'; // DDI+DDD+número

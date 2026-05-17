@@ -1214,7 +1214,7 @@
       <button class="nav-item" onclick="goTo('config')">
         <span class="nav-icon">⚙️</span> Configurações
       </button>
-      <a href="https://isabelapublicitaria-sys.github.io/docegestao/cardapio.html" target="_blank" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;color:rgba(255,255,255,.55);font-size:.9rem;font-weight:500;cursor:pointer;transition:var(--transition);text-decoration:none;margin-top:4px" onmouseover="this.style.background='rgba(255,255,255,.07)';this.style.color='var(--cream)'" onmouseout="this.style.background='';this.style.color='rgba(255,255,255,.55)'">
+      <a id="link-cardapio-publico" href="#" onclick="abrirCardapioPublico(event)" target="_blank" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;color:rgba(255,255,255,.55);font-size:.9rem;font-weight:500;cursor:pointer;transition:var(--transition);text-decoration:none;margin-top:4px" onmouseover="this.style.background='rgba(255,255,255,.07)';this.style.color='var(--cream)'" onmouseout="this.style.background='';this.style.color='rgba(255,255,255,.55)'">
         <span style="font-size:1.1rem;width:22px;text-align:center">🛍️</span> Ver cardápio público
       </a>
     </nav>
@@ -2729,6 +2729,24 @@ async function doLogin() {
   try {
     const { data, error } = await sbClient.auth.signInWithPassword({ email, password: pass });
     if (error) throw error;
+
+    // Limpa localStorage se for um usuário diferente do anterior
+    const lastUID = localStorage.getItem('dg_last_uid');
+    if (lastUID && lastUID !== data.user.id) {
+      console.log('Usuário diferente detectado — limpando dados locais...');
+      const keysToKeep = ['dg_supa_url', 'dg_supa_key'];
+      const saved = {};
+      keysToKeep.forEach(k => { const v = localStorage.getItem(k); if (v) saved[k] = v; });
+      localStorage.clear();
+      keysToKeep.forEach(k => { if (saved[k]) localStorage.setItem(k, saved[k]); });
+      // Reinicia o db vazio
+      db.produtos = []; db.clientes = []; db.vendas = [];
+      db.receitas = []; db.insumos = []; db.metas = [];
+      db.config = { prolabore: 0, horasMes: 160 };
+      db.custos_fixos_itens = [];
+    }
+    localStorage.setItem('dg_last_uid', data.user.id);
+
     await loadUserProfile(data.user);
     enterApp({ email: data.user.email, name: db.config.nome || email.split('@')[0], company: db.config.empresa || 'Minha Confeitaria' });
   } catch(e) {
@@ -2950,6 +2968,14 @@ async function savePerfil() {
   }
 }
 
+async function abrirCardapioPublico(e) {
+  e.preventDefault();
+  const uid  = await getUID();
+  const base = 'https://isabelapublicitaria-sys.github.io/docegestao/cardapio.html';
+  const url  = uid ? `${base}?id=${uid}` : base;
+  window.open(url, '_blank');
+}
+
 function enterApp(user) {
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').classList.add('visible');
@@ -2960,6 +2986,16 @@ function enterApp(user) {
   document.getElementById('cfg-email').value = user.email;
   document.getElementById('cfg-nome').value = user.name;
   document.getElementById('cfg-empresa').value = user.company;
+
+  // Link do cardápio com UID do usuário logado
+  getUID().then(uid => {
+    if (uid) {
+      const base = 'https://isabelapublicitaria-sys.github.io/docegestao/cardapio.html';
+      const link = document.getElementById('link-cardapio-publico');
+      if (link) link.href = `${base}?id=${uid}`;
+    }
+  });
+
   updateDate();
   goTo('dashboard');
 }
