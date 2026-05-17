@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Doce Gestão — Painel Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Comfortaa:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --cream:     #fdf6ee;
+  --cream2:    #f5e9d8;
+  --cream3:    #ecdcbe;
+  --choco:     #2c1503;
+  --choco2:    #4a2410;
+  --caramel:   #c8854a;
+  --caramel2:  #e2a96b;
+  --caramel3:  #a0632d;
+  --rose:      #d4826a;
+  --gold:      #c9a44a;
+  --white:     #ffffff;
+  --text:      #2c1503;
+  --text2:     #6b3d1e;
+  --text3:     #a07050;
+  --green:     #2e7d32;
+  --red:       #c0392b;
+  --amber:     #f57f17;
+  --blue:      #1565c0;
+  --r:         14px;
+  --shadow:    0 4px 24px rgba(44,21,3,.09);
+  --shadowL:   0 8px 40px rgba(44,21,3,.16);
+  --sidebar-w: 240px;
+  --trans:     .22s cubic-bezier(.4,0,.2,1);
+}
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'Comfortaa',sans-serif; background:var(--cream); color:var(--text); min-height:100vh; }
+::-webkit-scrollbar { width:5px; }
+::-webkit-scrollbar-track { background:var(--cream2); }
+::-webkit-scrollbar-thumb { background:var(--caramel); border-radius:3px; }
+
+/* ── LOGIN ── */
+#login-screen {
+  min-height:100vh; display:flex; align-items:center; justify-content:center;
+  background:var(--choco);
+  background-image: radial-gradient(ellipse 60% 50% at 30% 40%, rgba(200,133,74,.2) 0%, transparent 65%);
+}
+.login-card {
+  background:var(--cream); border-radius:24px; padding:48px 44px;
+  width:min(420px,95vw); box-shadow:0 32px 80px rgba(0,0,0,.35);
+  animation:slideUp .5s ease both;
+}
+@keyframes slideUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+.login-logo { text-align:center; margin-bottom:32px; }
+.login-icon {
+  width:68px; height:68px; border-radius:50%;
+  background:linear-gradient(135deg,var(--caramel),var(--choco2));
+  display:flex; align-items:center; justify-content:center;
+  font-size:28px; margin:0 auto 14px;
+  box-shadow:0 8px 24px rgba(200,133,74,.4);
+}
+.login-title { font-family:'Playfair Display',serif; font-size:1.7rem; color:var(--choco); }
+.login-sub { font-size:.78rem; color:var(--text3); margin-top:4px; }
+.fld { display:flex; flex-direction:column; gap:5px; margin-bottom:16px; }
+.fld label { font-size:.76rem; font-weight:700; color:var(--text2); letter-spacing:.3px; }
+.fld input {
+  padding:12px 14px; border:2px solid var(--cream3); border-radius:10px;
+  font-family:'Comfortaa',sans-serif; font-size:.9rem; color:var(--text);
+  outline:none; transition:var(--trans);
+}
+.fld input:focus { border-color:var(--caramel); box-shadow:0 0 0 3px rgba(200,133,74,.12); }
+.btn-prim {
+  width:100%; padding:14px; border:none; border-radius:10px;
+  background:linear-gradient(135deg,var(--caramel),var(--caramel3));
+  color:white; font-family:'Comfortaa',sans-serif; font-size:.95rem; font-weight:700;
+  cursor:pointer; transition:var(--trans);
+  box-shadow:0 4px 16px rgba(200,133,74,.4);
+}
+.btn-prim:hover { transform:translateY(-1px); box-shadow:0 8px 24px rgba(200,133,74,.5); }
+.login-err { font-size:.8rem; color:var(--red); text-align:center; margin-top:8px; }
+
+/* ── APP LAYOUT ── */
+#app { display:none; min-height:100vh; }
+#app.visible { display:flex; }
+
+.sidebar {
+  width:var(--sidebar-w); background:var(--choco); flex-shrink:0;
+  display:flex; flex-direction:column;
+  position:fixed; left:0; top:0; bottom:0; z-index:100;
+}
+.sidebar-brand {
+  padding:28px 22px 20px;
+  border-bottom:1px solid rgba(255,255,255,.07);
+}
+.brand-icon2 {
+  width:42px; height:42px; border-radius:12px;
+  background:linear-gradient(135deg,var(--caramel),var(--rose));
+  display:flex; align-items:center; justify-content:center; font-size:20px;
+  margin-bottom:10px;
+}
+.brand-name2 { font-family:'Playfair Display',serif; font-size:1.15rem; font-weight:700; color:var(--cream); }
+.brand-tag2  { font-size:.65rem; color:var(--caramel2); letter-spacing:1px; text-transform:uppercase; }
+
+.nav { padding:16px 10px; flex:1; display:flex; flex-direction:column; gap:2px; }
+.nav-item2 {
+  display:flex; align-items:center; gap:10px; padding:11px 12px; border-radius:10px;
+  color:rgba(255,255,255,.5); font-size:.85rem; font-weight:500;
+  cursor:pointer; border:none; background:none; width:100%; text-align:left;
+  transition:var(--trans);
+}
+.nav-item2:hover { background:rgba(255,255,255,.07); color:var(--cream); }
+.nav-item2.active { background:linear-gradient(135deg,var(--caramel),var(--caramel3)); color:white; box-shadow:0 3px 12px rgba(200,133,74,.35); }
+.nav-item2 .ni-icon { font-size:1rem; width:20px; text-align:center; }
+.sidebar-foot {
+  padding:14px 10px; border-top:1px solid rgba(255,255,255,.07);
+}
+.admin-user {
+  display:flex; align-items:center; gap:9px; padding:9px 12px;
+  background:rgba(255,255,255,.05); border-radius:10px;
+}
+.admin-avatar {
+  width:34px; height:34px; border-radius:50%;
+  background:linear-gradient(135deg,var(--gold),var(--caramel));
+  display:flex; align-items:center; justify-content:center;
+  font-size:.85rem; font-weight:700; color:white; flex-shrink:0;
+}
+.admin-info { flex:1; min-width:0; }
+.admin-name  { font-size:.8rem; font-weight:600; color:var(--cream); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.admin-role  { font-size:.65rem; color:rgba(255,255,255,.35); }
+.btn-logout2 { background:none; border:none; cursor:pointer; color:rgba(255,255,255,.3); font-size:.95rem; transition:var(--trans); }
+.btn-logout2:hover { color:var(--rose); }
+
+/* ── MAIN ── */
+.main2 { margin-left:var(--sidebar-w); flex:1; display:flex; flex-direction:column; }
+.topbar2 {
+  height:62px; background:var(--white); border-bottom:1px solid var(--cream3);
+  display:flex; align-items:center; padding:0 28px; gap:16px;
+  position:sticky; top:0; z-index:50; box-shadow:0 1px 10px rgba(44,21,3,.06);
+}
+.topbar2-title { font-family:'Playfair Display',serif; font-size:1.3rem; font-weight:600; color:var(--choco); flex:1; }
+.topbar2-badge {
+  padding:5px 14px; border-radius:20px; font-size:.75rem; font-weight:700;
+  background:var(--cream2); color:var(--text2);
+}
+.page2 { padding:28px; display:none; }
+.page2.active { display:block; }
+
+/* ── STATS ── */
+.stats2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px; margin-bottom:28px; }
+.stat2 {
+  background:var(--white); border-radius:var(--r); padding:20px 22px;
+  box-shadow:var(--shadow); position:relative; overflow:hidden;
+}
+.stat2::after {
+  content:''; position:absolute; top:0; right:0; width:60px; height:60px;
+  border-radius:0 var(--r) 0 60px; opacity:.08;
+}
+.stat2.s1::after { background:var(--caramel); }
+.stat2.s2::after { background:var(--green); }
+.stat2.s3::after { background:var(--amber); }
+.stat2.s4::after { background:var(--red); }
+.stat2-icon { font-size:1.5rem; margin-bottom:10px; }
+.stat2-label { font-size:.7rem; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.4px; margin-bottom:5px; }
+.stat2-val { font-family:'Playfair Display',serif; font-size:1.7rem; font-weight:700; color:var(--choco); line-height:1; }
+.stat2-sub { font-size:.72rem; color:var(--text3); margin-top:5px; }
+
+/* ── TABLE ── */
+.card2 { background:var(--white); border-radius:var(--r); box-shadow:var(--shadow); overflow:hidden; }
+.toolbar2 {
+  padding:16px 20px; border-bottom:1px solid var(--cream2);
+  display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+}
+.search2 {
+  flex:1; min-width:180px; padding:9px 14px;
+  border:2px solid var(--cream3); border-radius:10px;
+  font-family:'Comfortaa',sans-serif; font-size:.87rem; color:var(--text);
+  background:var(--cream); outline:none; transition:var(--trans);
+}
+.search2:focus { border-color:var(--caramel); background:var(--white); }
+.sel2 {
+  padding:9px 12px; border:2px solid var(--cream3); border-radius:10px;
+  font-family:'Comfortaa',sans-serif; font-size:.83rem; color:var(--text);
+  background:var(--cream); outline:none; cursor:pointer;
+}
+table { width:100%; border-collapse:collapse; }
+thead th {
+  padding:12px 18px; text-align:left; font-size:.68rem; font-weight:700;
+  color:var(--text3); letter-spacing:.5px; text-transform:uppercase;
+  background:var(--cream); border-bottom:1px solid var(--cream3);
+}
+tbody tr { transition:var(--trans); }
+tbody tr:hover { background:var(--cream); }
+tbody td { padding:14px 18px; font-size:.85rem; color:var(--text); border-bottom:1px solid var(--cream2); vertical-align:middle; }
+tbody tr:last-child td { border-bottom:none; }
+
+/* ── BADGES ── */
+.badge2 { display:inline-flex; align-items:center; padding:3px 10px; border-radius:20px; font-size:.7rem; font-weight:700; gap:4px; white-space:nowrap; }
+.b-green  { background:#e8f5e9; color:var(--green); }
+.b-amber  { background:#fff8e1; color:var(--amber); }
+.b-red    { background:#fde8e8; color:var(--red); }
+.b-blue   { background:#e3f2fd; color:var(--blue); }
+.b-gray   { background:var(--cream2); color:var(--text3); }
+.b-gold   { background:#fff8e1; color:#b8860b; }
+
+/* ── PLAN BADGE ── */
+.plan-badge {
+  display:inline-flex; align-items:center; gap:5px;
+  padding:4px 12px; border-radius:20px; font-size:.72rem; font-weight:700;
+}
+.plan-free    { background:var(--cream2); color:var(--text2); }
+.plan-basic   { background:#e3f2fd; color:var(--blue); }
+.plan-pro     { background:linear-gradient(135deg,#fff8e1,#ffe082); color:#b8860b; }
+.plan-premium { background:linear-gradient(135deg,#fce4ec,#f8bbd0); color:#880e4f; }
+
+/* ── CLIENT MODAL ── */
+.modal2-over {
+  position:fixed; inset:0; z-index:200;
+  background:rgba(20,10,0,.55);
+  display:flex; align-items:center; justify-content:center;
+  opacity:0; pointer-events:none; transition:var(--trans); padding:20px;
+}
+.modal2-over.open { opacity:1; pointer-events:all; }
+.modal2 {
+  background:var(--cream); border-radius:20px;
+  width:min(640px,100%); max-height:88vh; overflow-y:auto;
+  box-shadow:0 24px 80px rgba(0,0,0,.3);
+  transform:scale(.96) translateY(10px); transition:var(--trans);
+}
+.modal2-over.open .modal2 { transform:scale(1) translateY(0); }
+.modal2-hdr {
+  padding:24px 28px 18px; border-bottom:1px solid var(--cream3);
+  display:flex; align-items:center; gap:14px;
+}
+.modal2-icon {
+  width:46px; height:46px; border-radius:14px; flex-shrink:0;
+  background:linear-gradient(135deg,var(--caramel),var(--caramel3));
+  display:flex; align-items:center; justify-content:center; font-size:1.3rem;
+}
+.modal2-title { font-family:'Playfair Display',serif; font-size:1.15rem; color:var(--choco); font-weight:600; }
+.modal2-sub   { font-size:.75rem; color:var(--text3); margin-top:2px; }
+.modal2-close {
+  margin-left:auto; background:none; border:none; font-size:1rem;
+  color:var(--text3); cursor:pointer; width:30px; height:30px;
+  border-radius:7px; display:flex; align-items:center; justify-content:center;
+  transition:var(--trans);
+}
+.modal2-close:hover { background:var(--cream2); }
+.modal2-body { padding:22px 28px; }
+.modal2-ftr  { padding:14px 28px 22px; display:flex; gap:10px; justify-content:flex-end; }
+
+.info-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
+.info-box {
+  background:var(--cream2); border-radius:12px; padding:14px 16px;
+}
+.info-box-label { font-size:.68rem; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:5px; }
+.info-box-val   { font-size:.9rem; font-weight:600; color:var(--choco); word-break:break-all; }
+
+.section2-title {
+  font-family:'Playfair Display',serif; font-size:1rem; color:var(--choco);
+  margin:18px 0 12px; display:flex; align-items:center; gap:8px;
+}
+.db-stat-row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:10px 0; border-bottom:1px solid var(--cream2); font-size:.83rem;
+}
+.db-stat-row:last-child { border-bottom:none; }
+.db-stat-label { color:var(--text2); }
+.db-stat-val   { font-weight:700; color:var(--choco); }
+.db-stat-val.green { color:var(--green); }
+.db-stat-val.red   { color:var(--red); }
+.db-stat-val.amber { color:var(--amber); }
+
+/* errors */
+.error-list { display:flex; flex-direction:column; gap:6px; }
+.error-item {
+  background:#fde8e8; border-left:3px solid var(--red);
+  border-radius:6px; padding:8px 12px;
+  font-size:.78rem; color:var(--red); display:flex; align-items:center; gap:8px;
+}
+.warn-item {
+  background:#fff8e1; border-left:3px solid var(--amber);
+  border-radius:6px; padding:8px 12px;
+  font-size:.78rem; color:var(--amber); display:flex; align-items:center; gap:8px;
+}
+.ok-item {
+  background:#e8f5e9; border-left:3px solid var(--green);
+  border-radius:6px; padding:8px 12px;
+  font-size:.78rem; color:var(--green); display:flex; align-items:center; gap:8px;
+}
+
+/* Btn */
+.btn-sm2 {
+  padding:7px 14px; border-radius:8px; border:none;
+  font-family:'Comfortaa',sans-serif; font-size:.78rem; font-weight:700;
+  cursor:pointer; transition:var(--trans);
+  display:inline-flex; align-items:center; gap:5px;
+}
+.btn-sm2.prim { background:var(--caramel); color:white; }
+.btn-sm2.prim:hover { background:var(--caramel3); }
+.btn-sm2.ghost { background:var(--cream2); color:var(--text2); }
+.btn-sm2.ghost:hover { background:var(--cream3); }
+.btn-sm2.danger { background:#fde8e8; color:var(--red); }
+.btn-sm2.danger:hover { background:#f8c4c4; }
+.btn-sm2.green { background:#e8f5e9; color:var(--green); }
+.btn-sm2.green:hover { background:#c8e6c9; }
+
+/* Loading */
+.loading2 {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:12px; padding:60px; color:var(--text3); font-size:.88rem;
+}
+.spin { width:28px; height:28px; border:2px solid var(--cream3); border-top-color:var(--caramel); border-radius:50%; animation:spin .7s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.empty2 { text-align:center; padding:50px 20px; color:var(--text3); }
+.empty2 .em-icon { font-size:2.5rem; margin-bottom:12px; opacity:.4; }
+.empty2 h3 { font-family:'Playfair Display',serif; font-size:1.1rem; color:var(--choco); margin-bottom:6px; }
+
+/* Toast */
+.toasts2 { position:fixed; bottom:20px; right:20px; z-index:999; display:flex; flex-direction:column; gap:8px; }
+.toast2 {
+  padding:12px 18px; border-radius:10px; background:var(--choco); color:var(--cream);
+  font-size:.82rem; font-weight:500; display:flex; align-items:center; gap:8px;
+  box-shadow:0 6px 20px rgba(0,0,0,.3); animation:toastIn .3s ease;
+}
+.toast2.ok  { background:var(--green); }
+.toast2.err { background:var(--red); }
+@keyframes toastIn { from{opacity:0;transform:translateX(16px)} to{opacity:1;transform:translateX(0)} }
+
+.plan-select {
+  padding:6px 10px; border:2px solid var(--cream3); border-radius:8px;
+  font-family:'Comfortaa',sans-serif; font-size:.78rem;
+  background:var(--white); outline:none; cursor:pointer;
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-icon">🍰</div>
+      <div class="login-title">Doce Gestão</div>
+      <div class="login-sub">Painel Administrativo</div>
+    </div>
+    <div class="fld">
+      <label>E-mail admin</label>
+      <input type="email" id="adm-email" placeholder="admin@docegestao.com" />
+    </div>
+    <div class="fld">
+      <label>Senha</label>
+      <input type="password" id="adm-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doAdminLogin()" />
+    </div>
+    <div class="login-err" id="login-err"></div>
+    <button class="btn-prim" style="margin-top:16px" id="btn-adm-login" onclick="doAdminLogin()">
+      Acessar painel
+    </button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon2">🍰</div>
+      <div class="brand-name2">Doce Gestão</div>
+      <div class="brand-tag2">Admin Master</div>
+    </div>
+    <nav class="nav">
+      <button class="nav-item2 active" onclick="goAdmin('overview')">
+        <span class="ni-icon">📊</span> Visão Geral
+      </button>
+      <button class="nav-item2" onclick="goAdmin('clientes')">
+        <span class="ni-icon">👥</span> Clientes
+      </button>
+      <button class="nav-item2" onclick="goAdmin('planos')">
+        <span class="ni-icon">💎</span> Planos
+      </button>
+      <button class="nav-item2" onclick="goAdmin('banco')">
+        <span class="ni-icon">🗄️</span> Banco de Dados
+      </button>
+      <button class="nav-item2" onclick="goAdmin('supabase')">
+        <span class="ni-icon">⚙️</span> Supabase
+      </button>
+      <a class="nav-item2" href="https://isabelapublicitaria-sys.github.io/docegestao/cadastro.html" target="_blank" style="text-decoration:none">
+        <span class="ni-icon">➕</span> Novo cliente
+      </a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="admin-user">
+        <div class="admin-avatar" id="adm-avatar">A</div>
+        <div class="admin-info">
+          <div class="admin-name" id="adm-name">Admin</div>
+          <div class="admin-role">Master</div>
+        </div>
+        <button class="btn-logout2" onclick="doAdminLogout()" title="Sair">↩</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main2">
+    <header class="topbar2">
+      <div class="topbar2-title" id="topbar2-title">Visão Geral</div>
+      <div class="topbar2-badge" id="topbar2-date"></div>
+      <button class="btn-sm2 prim" onclick="recarregarDados()">🔄 Atualizar</button>
+    </header>
+
+    <!-- OVERVIEW -->
+    <div class="page2 active" id="page-overview">
+      <div class="stats2" id="stats2">
+        <div class="stat2 s1"><div class="stat2-icon">👥</div><div class="stat2-label">Total de clientes</div><div class="stat2-val" id="s-total">—</div><div class="stat2-sub">usuários cadastrados</div></div>
+        <div class="stat2 s2"><div class="stat2-icon">✅</div><div class="stat2-label">Ativos</div><div class="stat2-val" id="s-ativos">—</div><div class="stat2-sub">com acesso ativo</div></div>
+        <div class="stat2 s3"><div class="stat2-icon">💎</div><div class="stat2-label">Pagantes</div><div class="stat2-val" id="s-pagantes">—</div><div class="stat2-sub">plano pago</div></div>
+        <div class="stat2 s4"><div class="stat2-icon">⚠️</div><div class="stat2-label">Com alertas</div><div class="stat2-val" id="s-alertas">—</div><div class="stat2-sub">erros ou vencidos</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div class="card2">
+          <div style="padding:18px 20px;border-bottom:1px solid var(--cream2)">
+            <div style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--choco)">Distribuição de planos</div>
+          </div>
+          <div style="padding:16px 20px" id="overview-planos">
+            <div class="loading2"><div class="spin"></div>Carregando...</div>
+          </div>
+        </div>
+        <div class="card2">
+          <div style="padding:18px 20px;border-bottom:1px solid var(--cream2)">
+            <div style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--choco)">Últimos cadastros</div>
+          </div>
+          <div style="padding:0" id="overview-recentes">
+            <div class="loading2"><div class="spin"></div>Carregando...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CLIENTES -->
+    <div class="page2" id="page-clientes">
+      <div class="card2">
+        <div class="toolbar2">
+          <input class="search2" id="cli-search" placeholder="Buscar por nome, e-mail..." oninput="renderClientes2()" />
+          <select class="sel2" id="cli-plano-filter" onchange="renderClientes2()">
+            <option value="">Todos os planos</option>
+            <option value="gratis">Grátis</option>
+            <option value="basic">Basic</option>
+            <option value="pro">Pro</option>
+          </select>
+          <select class="sel2" id="cli-status-filter" onchange="renderClientes2()">
+            <option value="">Todos os status</option>
+            <option value="ativo">Ativos</option>
+            <option value="vencido">Vencidos</option>
+            <option value="alerta">Com alerta</option>
+          </select>
+        </div>
+        <div id="clientes2-wrap">
+          <div class="loading2"><div class="spin"></div>Carregando clientes...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PLANOS -->
+    <div class="page2" id="page-planos">
+      <div style="margin-bottom:20px;display:flex;justify-content:space-between;align-items:center">
+        <div style="font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--choco)">Gerenciar Planos</div>
+        <button class="btn-sm2 prim" onclick="abrirModalNovoPlano()">＋ Novo plano</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px" id="planos-grid">
+        <div class="loading2" style="grid-column:1/-1"><div class="spin"></div>Carregando...</div>
+      </div>
+    </div>
+
+    <!-- BANCO DE DADOS -->
+    <div class="page2" id="page-banco">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px" id="banco-grid">
+        <div class="loading2" style="grid-column:1/-1"><div class="spin"></div>Carregando dados do banco...</div>
+      </div>
+    </div>
+
+    <!-- SUPABASE CONFIG -->
+    <div class="page2" id="page-supabase">
+      <div class="card2" style="max-width:560px">
+        <div style="padding:20px 24px;border-bottom:1px solid var(--cream2)">
+          <div style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--choco)">⚙️ Configuração Supabase</div>
+          <div style="font-size:.75rem;color:var(--text3);margin-top:2px">Credenciais de conexão ao banco de dados</div>
+        </div>
+        <div style="padding:22px 24px">
+          <div class="fld">
+            <label>URL do projeto</label>
+            <input type="text" id="supa-url" placeholder="https://xxxx.supabase.co" />
+          </div>
+          <div class="fld">
+            <label>Anon Key</label>
+            <input type="text" id="supa-key" placeholder="eyJ..." />
+          </div>
+          <div style="background:var(--cream2);padding:12px;border-radius:10px;font-size:.75rem;color:var(--text3);margin-bottom:16px">
+            💡 Supabase → Project Settings → API → anon key
+          </div>
+          <div style="display:flex;gap:10px">
+            <button class="btn-sm2 prim" onclick="salvarSupabase()">🔗 Salvar e conectar</button>
+            <button class="btn-sm2 ghost" onclick="testarConexao()">🧪 Testar conexão</button>
+          </div>
+          <div id="supa-status" style="margin-top:12px;font-size:.8rem"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL CLIENTE DETALHE -->
+<div class="modal2-over" id="modal-cliente2">
+  <div class="modal2">
+    <div class="modal2-hdr">
+      <div class="modal2-icon">👤</div>
+      <div>
+        <div class="modal2-title" id="mc2-nome">—</div>
+        <div class="modal2-sub" id="mc2-email">—</div>
+      </div>
+      <button class="modal2-close" onclick="fecharModal2()">✕</button>
+    </div>
+    <div class="modal2-body">
+      <!-- Plano -->
+      <div class="section2-title">💎 Plano & Assinatura</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px" id="mc2-plano-info"></div>
+
+      <!-- Alterar plano -->
+      <div style="background:var(--cream2);border-radius:12px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:.8rem;font-weight:600;color:var(--text2)">Alterar plano:</span>
+        <select class="plan-select" id="mc2-novo-plano">
+          <option value="gratis">🆓 Grátis</option>
+          <option value="basic">🔵 Basic — R$ 47/mês</option>
+          <option value="pro">⭐ Pro — R$ 97/mês</option>
+        </select>
+        <input type="date" id="mc2-vencimento" style="padding:6px 10px;border:2px solid var(--cream3);border-radius:8px;font-family:'Comfortaa',sans-serif;font-size:.78rem" />
+        <button class="btn-sm2 prim" onclick="salvarPlanoCliente()">Salvar</button>
+      </div>
+
+      <!-- Dados do banco -->
+      <div class="section2-title">🗄️ Dados no Banco de Dados</div>
+      <div id="mc2-db-stats"></div>
+
+      <!-- Erros/alertas -->
+      <div class="section2-title">🔍 Diagnóstico</div>
+      <div id="mc2-erros" class="error-list"></div>
+
+      <!-- Ações -->
+      <div class="section2-title">⚡ Ações</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-sm2 ghost" onclick="verNoSupabase()">🔗 Ver no Supabase</button>
+        <button class="btn-sm2 green" onclick="ativarCliente()">✅ Reativar conta</button>
+        <button class="btn-sm2 danger" onclick="suspenderCliente()">🚫 Suspender</button>
+      </div>
+    </div>
+    <div class="modal2-ftr">
+      <button class="btn-sm2 ghost" onclick="fecharModal2()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOASTS -->
+<div class="toasts2" id="toasts2"></div>
+
+<script>
+// ════════════════════════════════════════
+// CONFIG
+// ════════════════════════════════════════
+const SUPA_URL = 'https://uiujarlepzavgxglkhdw.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA';
+
+// E-mail e senha do admin master (altere aqui)
+const ADMIN_EMAIL = 'belinhaasantos2@gmail.com';
+const ADMIN_UID   = '0075968c-b75b-4cbf-84fe-6133c483cab0';
+
+// ════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════
+let sb       = null;
+let allUsers = [];
+let allPerfis= [];
+let allPlanos= [];
+let clienteAtual = null;
+
+const PLANO_LABELS = {
+  gratis:  { label:'Grátis',  cls:'plan-free',    icon:'🆓', preco:'R$ 0/mês',   desc:'Acesso básico para testar' },
+  basic:   { label:'Basic',   cls:'plan-basic',   icon:'🔵', preco:'R$ 47/mês',  desc:'Gestão completa sem gateway' },
+  pro:     { label:'Pro',     cls:'plan-pro',     icon:'⭐', preco:'R$ 97/mês',  desc:'Tudo do Basic + pagamento online' },
+};
+
+// ════════════════════════════════════════
+// INIT SUPABASE
+// ════════════════════════════════════════
+function initSB(url, key) {
+  try {
+    sb = window.supabase.createClient(url || SUPA_URL, key || SUPA_KEY);
+    return true;
+  } catch(e) { return false; }
+}
+initSB(SUPA_URL, SUPA_KEY);
+
+// ════════════════════════════════════════
+// AUTH ADMIN
+// ════════════════════════════════════════
+async function doAdminLogin() {
+  const email = document.getElementById('adm-email').value.trim();
+  const pass  = document.getElementById('adm-pass').value;
+  const errEl = document.getElementById('login-err');
+  const btn   = document.getElementById('btn-adm-login');
+
+  if (!email || !pass) { errEl.textContent = 'Preencha e-mail e senha.'; return; }
+
+  btn.textContent = 'Entrando...'; btn.disabled = true;
+  errEl.textContent = '';
+
+  try {
+    const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+    if (error) throw error;
+
+    // Verifica se é o admin pelo UID
+    if (data.user.id !== ADMIN_UID) {
+      await sb.auth.signOut();
+      throw new Error('Acesso restrito ao administrador.');
+    }
+
+    sessionStorage.setItem('dg_admin', '1');
+    document.getElementById('adm-name').textContent   = email.split('@')[0];
+    document.getElementById('adm-avatar').textContent = email.charAt(0).toUpperCase();
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').classList.add('visible');
+    updateDate();
+    await recarregarDados();
+    goAdmin('overview');
+  } catch(e) {
+    errEl.textContent = e.message || 'Erro ao entrar.';
+  } finally {
+    btn.textContent = 'Acessar painel'; btn.disabled = false;
+  }
+}
+
+async function doAdminLogout() {
+  await sb.auth.signOut();
+  sessionStorage.removeItem('dg_admin');
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').classList.remove('visible');
+}
+
+// ════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════
+const PAGE_TITLES = {
+  overview: 'Visão Geral', clientes: 'Clientes',
+  planos: 'Planos', banco: 'Banco de Dados', supabase: 'Configuração Supabase'
+};
+
+function goAdmin(page) {
+  document.querySelectorAll('.page2').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item2').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('.nav-item2').forEach(n => {
+    if (n.getAttribute('onclick') === `goAdmin('${page}')`) n.classList.add('active');
+  });
+  document.getElementById('topbar2-title').textContent = PAGE_TITLES[page] || page;
+
+  if (page === 'overview')  renderOverview();
+  if (page === 'clientes')  renderClientes2();
+  if (page === 'planos')    renderPlanos();
+  if (page === 'banco')     renderBanco();
+  if (page === 'supabase')  carregarSupabaseConfig();
+}
+
+// ════════════════════════════════════════
+// LOAD DATA
+// ════════════════════════════════════════
+async function recarregarDados() {
+  try {
+    // Busca perfis de todos os usuários
+    const { data: perfis, error: errP } = await sb.from('perfis').select('*');
+    if (errP) throw errP;
+    allPerfis = perfis || [];
+
+    // Busca planos (tabela admin_planos se existir)
+    try {
+      const { data: planos } = await sb.from('admin_planos').select('*');
+      allPlanos = planos || [];
+    } catch(e) { allPlanos = []; }
+
+    // Atualiza stats
+    renderStats();
+    toast2(`${allPerfis.length} cliente(s) carregados`, 'ok');
+  } catch(e) {
+    toast2('Erro ao carregar dados: ' + e.message, 'err');
+  }
+}
+
+// ════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════
+function getPlanoPerfil(perfil) {
+  const p = allPlanos.find(x => x.user_id === perfil.user_id);
+  return p || { plano: 'gratis', vencimento: null, ativo: true };
+}
+
+function getPlanoInfo(plano) {
+  return PLANO_LABELS[plano] || PLANO_LABELS.gratis;
+}
+
+function isVencido(vencimento) {
+  if (!vencimento) return false;
+  return new Date(vencimento) < new Date();
+}
+
+function diasParaVencer(vencimento) {
+  if (!vencimento) return null;
+  const diff = new Date(vencimento) - new Date();
+  return Math.ceil(diff / 86400000);
+}
+
+// ════════════════════════════════════════
+// STATS
+// ════════════════════════════════════════
+function renderStats() {
+  const total    = allPerfis.length;
+  const pagantes = allPlanos.filter(p => p.plano && p.plano !== 'gratis').length;
+  const vencidos = allPlanos.filter(p => isVencido(p.vencimento)).length;
+  const alertas  = allPerfis.filter(p => diagnosticarCliente(p).erros.length > 0).length;
+
+  document.getElementById('s-total').textContent    = total;
+  document.getElementById('s-ativos').textContent   = total - vencidos;
+  document.getElementById('s-pagantes').textContent = pagantes;
+  document.getElementById('s-alertas').textContent  = alertas + vencidos;
+}
+
+// ════════════════════════════════════════
+// OVERVIEW
+// ════════════════════════════════════════
+function renderOverview() {
+  renderStats();
+
+  // Distribuição de planos
+  const contagemPlanos = { gratis:0, basic:0, pro:0, premium:0 };
+  allPerfis.forEach(p => {
+    const pl = getPlanoPerfil(p);
+    contagemPlanos[pl.plano] = (contagemPlanos[pl.plano]||0) + 1;
+  });
+  // Grátis = total - pagantes
+  contagemPlanos.gratis = allPerfis.length - allPlanos.filter(p=>p.plano&&p.plano!=='gratis').length;
+
+  document.getElementById('overview-planos').innerHTML = Object.entries(contagemPlanos).map(([plano, n]) => {
+    const info = getPlanoInfo(plano);
+    const pct  = allPerfis.length > 0 ? Math.round((n/allPerfis.length)*100) : 0;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--cream2)">
+      <span class="plan-badge ${info.cls}">${info.icon} ${info.label}</span>
+      <div style="flex:1">
+        <div style="height:6px;background:var(--cream2);border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:var(--caramel);border-radius:3px"></div>
+        </div>
+      </div>
+      <span style="font-size:.82rem;font-weight:700;color:var(--choco);min-width:24px">${n}</span>
+    </div>`;
+  }).join('');
+
+  // Últimos cadastros
+  const recentes = [...allPerfis].sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0)).slice(0,6);
+  document.getElementById('overview-recentes').innerHTML = recentes.length
+    ? recentes.map(p => {
+        const pl = getPlanoPerfil(p);
+        const info = getPlanoInfo(pl.plano);
+        return `<div style="display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--cream2)">
+          <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--caramel2),var(--rose));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;color:white;flex-shrink:0">
+            ${(p.nome||p.empresa||'?').charAt(0).toUpperCase()}
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:.85rem;font-weight:600;color:var(--choco);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.nome||p.empresa||'Sem nome'}</div>
+            <div style="font-size:.72rem;color:var(--text3)">${p.created_at ? new Date(p.created_at).toLocaleDateString('pt-BR') : '—'}</div>
+          </div>
+          <span class="plan-badge ${info.cls}">${info.icon} ${info.label}</span>
+        </div>`;
+      }).join('')
+    : '<div class="empty2"><p>Nenhum cadastro</p></div>';
+}
+
+// ════════════════════════════════════════
+// CLIENTES TABLE
+// ════════════════════════════════════════
+function renderClientes2() {
+  const q          = (document.getElementById('cli-search')?.value || '').toLowerCase();
+  const planoFilt  = document.getElementById('cli-plano-filter')?.value || '';
+  const statusFilt = document.getElementById('cli-status-filter')?.value || '';
+
+  let lista = [...allPerfis];
+
+  if (q) lista = lista.filter(p =>
+    (p.nome||'').toLowerCase().includes(q) ||
+    (p.empresa||'').toLowerCase().includes(q) ||
+    (p.user_id||'').toLowerCase().includes(q));
+
+  if (planoFilt) lista = lista.filter(p => getPlanoPerfil(p).plano === planoFilt);
+
+  if (statusFilt === 'vencido') lista = lista.filter(p => isVencido(getPlanoPerfil(p).vencimento));
+  if (statusFilt === 'ativo')   lista = lista.filter(p => !isVencido(getPlanoPerfil(p).vencimento));
+  if (statusFilt === 'alerta')  lista = lista.filter(p => diagnosticarCliente(p).erros.length > 0);
+
+  const wrap = document.getElementById('clientes2-wrap');
+  if (!lista.length) {
+    wrap.innerHTML = '<div class="empty2"><div class="em-icon">👥</div><h3>Nenhum cliente encontrado</h3></div>';
+    return;
+  }
+
+  wrap.innerHTML = `<table>
+    <thead><tr>
+      <th>Cliente</th><th>Confeitaria</th><th>Plano</th>
+      <th>Vencimento</th><th>Status DB</th><th>Diagnóstico</th><th>Ações</th>
+    </tr></thead>
+    <tbody>
+    ${lista.map(p => {
+      const pl     = getPlanoPerfil(p);
+      const info   = getPlanoInfo(pl.plano);
+      const diag   = diagnosticarCliente(p);
+      const venc   = pl.vencimento ? new Date(pl.vencimento).toLocaleDateString('pt-BR') : '—';
+      const dias   = diasParaVencer(pl.vencimento);
+      const vencBadge = !pl.vencimento
+        ? '<span class="badge2 b-gray">Sem vencimento</span>'
+        : isVencido(pl.vencimento)
+          ? '<span class="badge2 b-red">⚠ Vencido</span>'
+          : dias !== null && dias <= 7
+            ? `<span class="badge2 b-amber">⏳ ${dias}d</span>`
+            : `<span class="badge2 b-green">✓ ${venc}</span>`;
+
+      const diagBadge = diag.erros.length > 0
+        ? `<span class="badge2 b-red">⚠ ${diag.erros.length} erro(s)</span>`
+        : diag.avisos.length > 0
+          ? `<span class="badge2 b-amber">⚡ ${diag.avisos.length} aviso(s)</span>`
+          : '<span class="badge2 b-green">✓ Ok</span>';
+
+      return `<tr>
+        <td>
+          <div style="font-weight:600;color:var(--choco)">${p.nome || '(sem nome)'}</div>
+          <div style="font-size:.7rem;color:var(--text3);font-family:monospace">${(p.user_id||'').slice(0,16)}...</div>
+        </td>
+        <td>${p.empresa || '—'}</td>
+        <td><span class="plan-badge ${info.cls}">${info.icon} ${info.label}</span></td>
+        <td>${vencBadge}</td>
+        <td>${diag.dbStats}</td>
+        <td>${diagBadge}</td>
+        <td>
+          <button class="btn-sm2 ghost" onclick="abrirCliente('${p.user_id}')">🔍 Detalhes</button>
+        </td>
+      </tr>`;
+    }).join('')}
+    </tbody>
+  </table>`;
+}
+
+// ════════════════════════════════════════
+// DIAGNÓSTICO
+// ════════════════════════════════════════
+function diagnosticarCliente(p) {
+  const erros  = [];
+  const avisos = [];
+  const pl     = getPlanoPerfil(p);
+
+  if (!p.empresa) avisos.push('Confeitaria sem nome cadastrado');
+  if (!p.tel)     avisos.push('Telefone não cadastrado');
+
+  if (pl.plano !== 'gratis' && isVencido(pl.vencimento)) erros.push('Plano vencido');
+  if (pl.plano !== 'gratis' && !pl.vencimento) avisos.push('Plano sem data de vencimento');
+
+  const dbStats = `<span style="font-size:.72rem;color:var(--text3)">—</span>`;
+
+  return { erros, avisos, dbStats };
+}
+
+// ════════════════════════════════════════
+// CLIENTE DETAIL MODAL
+// ════════════════════════════════════════
+let clienteDbStats = {};
+
+async function abrirCliente(userId) {
+  const p = allPerfis.find(x => x.user_id === userId);
+  if (!p) return;
+  clienteAtual = p;
+
+  document.getElementById('mc2-nome').textContent  = p.nome || p.empresa || 'Sem nome';
+  document.getElementById('mc2-email').textContent = `ID: ${p.user_id}`;
+
+  const pl   = getPlanoPerfil(p);
+  const info = getPlanoInfo(pl.plano);
+  const dias = diasParaVencer(pl.vencimento);
+
+  // Plano info cards
+  document.getElementById('mc2-plano-info').innerHTML = `
+    <div class="info-box">
+      <div class="info-box-label">Plano atual</div>
+      <div class="info-box-val"><span class="plan-badge ${info.cls}">${info.icon} ${info.label}</span></div>
+    </div>
+    <div class="info-box">
+      <div class="info-box-label">Vencimento</div>
+      <div class="info-box-val" style="color:${isVencido(pl.vencimento)?'var(--red)':dias&&dias<=7?'var(--amber)':'var(--choco)'}">${pl.vencimento ? new Date(pl.vencimento).toLocaleDateString('pt-BR') : 'Sem vencimento'}</div>
+    </div>
+    <div class="info-box">
+      <div class="info-box-label">Status</div>
+      <div class="info-box-val">${isVencido(pl.vencimento) ? '<span style="color:var(--red)">⚠ Vencido</span>' : dias!==null&&dias<=7 ? `<span style="color:var(--amber)">⏳ ${dias} dias</span>` : '<span style="color:var(--green)">✓ Ativo</span>'}</div>
+    </div>`;
+
+  // Preenche selects
+  document.getElementById('mc2-novo-plano').value = pl.plano || 'gratis';
+  if (pl.vencimento) {
+    const d = new Date(pl.vencimento).toISOString().slice(0,10);
+    document.getElementById('mc2-vencimento').value = d;
+  } else {
+    document.getElementById('mc2-vencimento').value = '';
+  }
+
+  // DB Stats — busca dados reais
+  document.getElementById('mc2-db-stats').innerHTML = '<div class="loading2" style="padding:20px"><div class="spin"></div>Buscando dados...</div>';
+  document.getElementById('mc2-erros').innerHTML    = '<div class="loading2" style="padding:10px"><div class="spin"></div></div>';
+
+  document.getElementById('modal-cliente2').classList.add('open');
+
+  // Busca contagens reais no Supabase
+  try {
+    const [prods, clientes, vendas, receitas, insumos] = await Promise.all([
+      sb.from('produtos').select('id', {count:'exact'}).eq('user_id', userId),
+      sb.from('clientes').select('id', {count:'exact'}).eq('user_id', userId),
+      sb.from('vendas').select('id,total', {count:'exact'}).eq('user_id', userId),
+      sb.from('receitas').select('id', {count:'exact'}).eq('user_id', userId),
+      sb.from('insumos').select('id', {count:'exact'}).eq('user_id', userId),
+    ]);
+
+    const totalVendas = (vendas.data||[]).reduce((s,v) => s + Number(v.total||0), 0);
+    const nVendas     = vendas.count || 0;
+    const nProd       = prods.count || 0;
+    const nClientes   = clientes.count || 0;
+    const nReceitas   = receitas.count || 0;
+    const nInsumos    = insumos.count || 0;
+
+    document.getElementById('mc2-db-stats').innerHTML = `
+      <div class="db-stat-row"><span class="db-stat-label">📦 Produtos cadastrados</span><span class="db-stat-val">${nProd}</span></div>
+      <div class="db-stat-row"><span class="db-stat-label">👥 Clientes cadastrados</span><span class="db-stat-val">${nClientes}</span></div>
+      <div class="db-stat-row"><span class="db-stat-label">🧾 Vendas realizadas</span><span class="db-stat-val">${nVendas}</span></div>
+      <div class="db-stat-row"><span class="db-stat-label">💰 Faturamento total</span><span class="db-stat-val green">R$ ${Number(totalVendas).toFixed(2).replace('.',',')}</span></div>
+      <div class="db-stat-row"><span class="db-stat-label">📖 Fichas técnicas</span><span class="db-stat-val">${nReceitas}</span></div>
+      <div class="db-stat-row"><span class="db-stat-label">🧂 Insumos</span><span class="db-stat-val">${nInsumos}</span></div>`;
+
+    // Diagnóstico detalhado
+    const diag  = diagnosticarCliente(p);
+    const items = [];
+    diag.erros.forEach(e  => items.push(`<div class="error-item">❌ ${e}</div>`));
+    diag.avisos.forEach(a => items.push(`<div class="warn-item">⚠️ ${a}</div>`));
+    if (!prods.error && !vendas.error && !clientes.error) items.push('<div class="ok-item">✅ Conexão com banco OK</div>');
+    if (nProd === 0) items.push('<div class="warn-item">⚡ Nenhum produto cadastrado ainda</div>');
+    if (nVendas === 0) items.push('<div class="warn-item">⚡ Nenhuma venda registrada</div>');
+    if (prods.error)    items.push(`<div class="error-item">❌ Erro produtos: ${prods.error.message}</div>`);
+    if (vendas.error)   items.push(`<div class="error-item">❌ Erro vendas: ${vendas.error.message}</div>`);
+    if (clientes.error) items.push(`<div class="error-item">❌ Erro clientes: ${clientes.error.message}</div>`);
+
+    document.getElementById('mc2-erros').innerHTML = items.join('') || '<div class="ok-item">✅ Tudo certo! Nenhum problema encontrado.</div>';
+
+  } catch(e) {
+    document.getElementById('mc2-db-stats').innerHTML = `<div class="error-item">❌ Erro ao buscar dados: ${e.message}</div>`;
+    document.getElementById('mc2-erros').innerHTML    = `<div class="error-item">❌ ${e.message}</div>`;
+  }
+}
+
+function fecharModal2() {
+  document.getElementById('modal-cliente2').classList.remove('open');
+  clienteAtual = null;
+}
+
+async function salvarPlanoCliente() {
+  if (!clienteAtual) return;
+  const novoPlano = document.getElementById('mc2-novo-plano').value;
+  const vencimento= document.getElementById('mc2-vencimento').value || null;
+  const userId    = clienteAtual.user_id;
+
+  try {
+    const { error } = await sb.from('admin_planos').upsert({
+      user_id:    userId,
+      plano:      novoPlano,
+      vencimento: vencimento,
+      atualizado: new Date().toISOString(),
+    }, { onConflict: 'user_id' });
+    if (error) throw error;
+
+    // Atualiza local
+    const idx = allPlanos.findIndex(x => x.user_id === userId);
+    const obj = { user_id: userId, plano: novoPlano, vencimento, atualizado: new Date().toISOString() };
+    if (idx >= 0) allPlanos[idx] = obj; else allPlanos.push(obj);
+
+    toast2('Plano atualizado!', 'ok');
+    await abrirCliente(userId); // recarrega
+    renderClientes2();
+  } catch(e) {
+    toast2('Erro: ' + e.message, 'err');
+  }
+}
+
+function verNoSupabase() {
+  if (!clienteAtual) return;
+  window.open(`${SUPA_URL}/project/default/editor`, '_blank');
+}
+
+async function ativarCliente() {
+  if (!clienteAtual) return;
+  // Define vencimento para 30 dias à frente
+  const venc = new Date();
+  venc.setDate(venc.getDate() + 30);
+  document.getElementById('mc2-vencimento').value = venc.toISOString().slice(0,10);
+  await salvarPlanoCliente();
+  toast2('Cliente reativado por 30 dias!', 'ok');
+}
+
+async function suspenderCliente() {
+  if (!clienteAtual) return;
+  if (!confirm(`Suspender o cliente ${clienteAtual.nome || clienteAtual.empresa}?`)) return;
+  const ontem = new Date();
+  ontem.setDate(ontem.getDate() - 1);
+  document.getElementById('mc2-vencimento').value = ontem.toISOString().slice(0,10);
+  await salvarPlanoCliente();
+  toast2('Cliente suspenso.', 'err');
+}
+
+// ════════════════════════════════════════
+// PLANOS PAGE
+// ════════════════════════════════════════
+function renderPlanos() {
+  const planosDef = [
+    {
+      id: 'gratis', nome: 'Grátis', preco: 0, cor: '#6b3d1e',
+      desc: 'Para conhecer o sistema',
+      recursos: [
+        'Até 5 tipos de produtos',
+        'Cardápio digital básico',
+        '1 usuário',
+      ],
+      nao: ['Gateway de pagamento', 'Estoque e insumos', 'Fichas técnicas', 'Precificação'],
+    },
+    {
+      id: 'basic', nome: 'Basic', preco: 47, cor: '#1565c0',
+      desc: 'Para quem está começando',
+      recursos: [
+        'Até 20 tipos de produtos',
+        'Cardápio digital completo',
+        'Gestão de estoque e insumos',
+        'Fichas técnicas',
+        'Precificação e metas',
+        'Histórico de clientes e vendas',
+        'Suporte por WhatsApp',
+      ],
+      nao: ['Gateway de pagamento online'],
+      destaque: false,
+    },
+    {
+      id: 'pro', nome: 'Pro', preco: 97, cor: '#b8860b',
+      desc: 'Para quem quer vender mais',
+      recursos: [
+        'Produtos ilimitados',
+        'Cardápio digital completo',
+        'Gestão de estoque e insumos',
+        'Fichas técnicas',
+        'Precificação e metas',
+        'Histórico de clientes e vendas',
+        'Gateway de pagamento online',
+        'Pix e cartão no cardápio',
+        'Suporte prioritário',
+      ],
+      nao: [],
+      destaque: true,
+    },
+  ];
+
+  const contagemPlanos = { gratis: 0, basic: 0, pro: 0 };
+  allPerfis.forEach(p => {
+    const pl = getPlanoPerfil(p);
+    if (contagemPlanos[pl.plano] !== undefined) contagemPlanos[pl.plano]++;
+  });
+
+  document.getElementById('planos-grid').innerHTML = planosDef.map(pl => {
+    const count = contagemPlanos[pl.id] || 0;
+    const info  = getPlanoInfo(pl.id);
+    return `
+    <div style="background:var(--white);border-radius:var(--r);box-shadow:${pl.destaque ? '0 8px 32px rgba(184,134,11,.2)' : 'var(--shadow)'};overflow:hidden;border:${pl.destaque ? '2px solid #b8860b' : '2px solid transparent'};position:relative">
+      ${pl.destaque ? '<div style="background:#b8860b;color:white;text-align:center;font-size:.7rem;font-weight:700;padding:5px;letter-spacing:1px">⭐ MAIS POPULAR</div>' : ''}
+      <div style="padding:24px 22px 16px;border-bottom:1px solid var(--cream2)">
+        <span class="plan-badge ${info.cls}" style="font-size:.82rem;margin-bottom:12px;display:inline-flex">${info.icon} ${info.label}</span>
+        <div style="font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;color:var(--choco);margin:8px 0 2px">
+          ${pl.preco === 0 ? 'Grátis' : `R$ ${pl.preco}`}
+          ${pl.preco > 0 ? '<span style="font-size:.85rem;font-weight:400;color:var(--text3)">/mês</span>' : ''}
+        </div>
+        <div style="font-size:.78rem;color:var(--text3)">${pl.desc}</div>
+        <div style="margin-top:10px;display:flex;align-items:center;gap:6px">
+          <span style="font-size:1.4rem;font-weight:800;color:${pl.cor}">${count}</span>
+          <span style="font-size:.72rem;color:var(--text3)">cliente${count !== 1 ? 's' : ''} ativos</span>
+        </div>
+      </div>
+      <div style="padding:16px 22px 22px">
+        ${pl.recursos.map(r => `<div style="font-size:.8rem;color:var(--text2);padding:5px 0;display:flex;align-items:center;gap:7px"><span style="color:var(--green);font-size:.8rem">✓</span>${r}</div>`).join('')}
+        ${pl.nao.map(r => `<div style="font-size:.8rem;color:var(--text3);padding:5px 0;display:flex;align-items:center;gap:7px;opacity:.5"><span style="font-size:.8rem">✗</span>${r}</div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function abrirModalNovoPlano() {
+  toast2('Em breve: criação de planos personalizados', '');
+}
+
+// ════════════════════════════════════════
+// BANCO DE DADOS
+// ════════════════════════════════════════
+async function renderBanco() {
+  const el = document.getElementById('banco-grid');
+  el.innerHTML = '<div class="loading2" style="grid-column:1/-1"><div class="spin"></div>Verificando tabelas...</div>';
+
+  const tabelas = ['perfis','produtos','clientes','vendas','receitas','insumos','metas','admin_planos'];
+  const results = await Promise.all(tabelas.map(async t => {
+    try {
+      const { count, error } = await sb.from(t).select('*', {count:'exact', head:true});
+      return { tabela: t, count: count || 0, ok: !error, erro: error?.message || null };
+    } catch(e) {
+      return { tabela: t, count: 0, ok: false, erro: e.message };
+    }
+  }));
+
+  el.innerHTML = results.map(r => `
+    <div class="card2" style="padding:0;overflow:hidden">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--cream2);display:flex;align-items:center;gap:10px">
+        <div style="width:8px;height:8px;border-radius:50%;background:${r.ok?'var(--green)':'var(--red)'};flex-shrink:0"></div>
+        <div style="font-family:'Playfair Display',serif;font-size:.95rem;color:var(--choco);flex:1">${r.tabela}</div>
+        <span class="badge2 ${r.ok?'b-green':'b-red'}">${r.ok?'✓ OK':'✗ Erro'}</span>
+      </div>
+      <div style="padding:14px 20px">
+        <div class="db-stat-row" style="padding:5px 0">
+          <span class="db-stat-label">Registros</span>
+          <span class="db-stat-val">${r.count}</span>
+        </div>
+        ${r.erro ? `<div style="font-size:.72rem;color:var(--red);margin-top:6px;padding:6px 10px;background:#fde8e8;border-radius:6px">❌ ${r.erro}</div>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+// ════════════════════════════════════════
+// SUPABASE CONFIG
+// ════════════════════════════════════════
+function carregarSupabaseConfig() {
+  document.getElementById('supa-url').value = localStorage.getItem('adm_supa_url') || SUPA_URL;
+  document.getElementById('supa-key').value = localStorage.getItem('adm_supa_key') || SUPA_KEY;
+}
+
+function salvarSupabase() {
+  const url = document.getElementById('supa-url').value.trim();
+  const key = document.getElementById('supa-key').value.trim();
+  if (!url || !key) { toast2('Preencha URL e chave', 'err'); return; }
+  localStorage.setItem('adm_supa_url', url);
+  localStorage.setItem('adm_supa_key', key);
+  const ok = initSB(url, key);
+  toast2(ok ? '✅ Conectado!' : '❌ Erro', ok ? 'ok' : 'err');
+}
+
+async function testarConexao() {
+  const el = document.getElementById('supa-status');
+  el.textContent = 'Testando...';
+  try {
+    const { error } = await sb.from('perfis').select('id', {head:true, count:'exact'});
+    if (error) throw error;
+    el.innerHTML = '<span style="color:var(--green)">✅ Conexão estabelecida com sucesso!</span>';
+  } catch(e) {
+    el.innerHTML = `<span style="color:var(--red)">❌ Erro: ${e.message}</span>`;
+  }
+}
+
+// ════════════════════════════════════════
+// UTILS
+// ════════════════════════════════════════
+function updateDate() {
+  const d = new Date();
+  document.getElementById('topbar2-date').textContent =
+    d.toLocaleDateString('pt-BR',{weekday:'short',day:'numeric',month:'short'});
+}
+
+function toast2(msg, tipo) {
+  const el = document.createElement('div');
+  el.className = `toast2 ${tipo==='ok'?'ok':tipo==='err'?'err':''}`;
+  el.innerHTML = `${tipo==='ok'?'✅':tipo==='err'?'❌':'ℹ️'} ${msg}`;
+  document.getElementById('toasts2').appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+// Fecha modal clicando fora
+document.getElementById('modal-cliente2').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-cliente2')) fecharModal2();
+});
+
+// Verifica sessão do Supabase ao carregar
+sb.auth.getSession().then(({ data }) => {
+  if (data?.session?.user?.id === ADMIN_UID) {
+    sessionStorage.setItem('dg_admin', '1');
+    document.getElementById('adm-name').textContent   = ADMIN_EMAIL.split('@')[0];
+    document.getElementById('adm-avatar').textContent = ADMIN_EMAIL.charAt(0).toUpperCase();
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').classList.add('visible');
+    updateDate();
+    recarregarDados().then(() => goAdmin('overview'));
+  }
+});
+</script>
+</body>
+</html>
