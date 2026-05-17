@@ -524,7 +524,7 @@ tbody tr:last-child td { border-bottom:none; }
       <div class="section2-title">💎 Plano & Assinatura</div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px" id="mc2-plano-info"></div>
 
-      <!-- Alterar plano -->
+      <!-- Alterar plano e status -->
       <div style="background:var(--cream2);border-radius:12px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <span style="font-size:.8rem;font-weight:600;color:var(--text2)">Alterar plano:</span>
         <select class="plan-select" id="mc2-novo-plano">
@@ -534,6 +534,14 @@ tbody tr:last-child td { border-bottom:none; }
         </select>
         <input type="date" id="mc2-vencimento" style="padding:6px 10px;border:2px solid var(--cream3);border-radius:8px;font-family:'Comfortaa',sans-serif;font-size:.78rem" />
         <button class="btn-sm2 prim" onclick="salvarPlanoCliente()">Salvar</button>
+      </div>
+
+      <!-- Status do cliente -->
+      <div style="background:var(--cream2);border-radius:12px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span style="font-size:.8rem;font-weight:600;color:var(--text2)">Status da conta:</span>
+        <span id="mc2-status-badge" style="font-size:.82rem;font-weight:700">—</span>
+        <button id="mc2-btn-ativar"   class="btn-sm2 prim"  onclick="alterarStatusCliente('ativo')"     style="display:none">✅ Ativar</button>
+        <button id="mc2-btn-suspender" class="btn-sm2" style="background:#c0392b;color:white;display:none" onclick="alterarStatusCliente('suspenso')">🔴 Suspender</button>
       </div>
 
       <!-- Dados do banco -->
@@ -809,7 +817,7 @@ function renderClientes2() {
   wrap.innerHTML = `<table>
     <thead><tr>
       <th>Confeitaria</th><th>Responsável</th><th>Telefone</th><th>E-mail</th>
-      <th>Plano</th><th>Vencimento</th><th>Diagnóstico</th><th>Ações</th>
+      <th>Plano</th><th>Vencimento</th><th>Status</th><th>Diagnóstico</th><th>Ações</th>
     </tr></thead>
     <tbody>
     ${lista.map(p => {
@@ -842,6 +850,10 @@ function renderClientes2() {
         <td style="font-size:.78rem;color:var(--text2)">${p.email||'—'}</td>
         <td><span class="plan-badge ${info.cls}">${info.icon} ${info.label}</span></td>
         <td>${vencBadge}</td>
+        <td>${p.status === 'suspenso'
+          ? '<span class="badge2 b-red">🔴 Suspenso</span>'
+          : '<span class="badge2 b-green">✓ Ativo</span>'
+        }</td>
         <td>${diagBadge}</td>
         <td>
           <button class="btn-sm2 ghost" onclick="abrirCliente('${p.user_id}')">🔍 Detalhes</button>
@@ -922,6 +934,12 @@ async function abrirCliente(userId) {
 
   // Preenche selects
   document.getElementById('mc2-novo-plano').value = pl.plano || 'gratis';
+  const statusAtual = p.status || 'ativo';
+  const badge = document.getElementById('mc2-status-badge');
+  badge.textContent    = statusAtual === 'suspenso' ? '🔴 Suspenso' : '✅ Ativo';
+  badge.style.color    = statusAtual === 'suspenso' ? '#c0392b' : '#2e7d32';
+  document.getElementById('mc2-btn-ativar').style.display    = statusAtual === 'suspenso' ? 'inline-flex' : 'none';
+  document.getElementById('mc2-btn-suspender').style.display = statusAtual !== 'suspenso' ? 'inline-flex' : 'none';
   if (pl.vencimento) {
     const d = new Date(pl.vencimento).toISOString().slice(0,10);
     document.getElementById('mc2-vencimento').value = d;
@@ -1002,13 +1020,50 @@ async function salvarPlanoCliente() {
     }, { onConflict: 'user_id' });
     if (error) throw error;
 
-    // Atualiza local
     const idx = allPlanos.findIndex(x => x.user_id === userId);
     const obj = { user_id: userId, plano: novoPlano, vencimento, atualizado: new Date().toISOString() };
     if (idx >= 0) allPlanos[idx] = obj; else allPlanos.push(obj);
 
     toast2('Plano atualizado!', 'ok');
-    await abrirCliente(userId); // recarrega
+    await abrirCliente(userId);
+    renderClientes2();
+  } catch(e) {
+    toast2('Erro: ' + e.message, 'err');
+  }
+}
+
+async function alterarStatusCliente(novoStatus) {
+  if (!clienteAtual) return;
+  const userId = clienteAtual.user_id;
+  try {
+    const res = await fetch(
+      `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/perfis?user_id=eq.${userId}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'apikey':       SUPABASE_KEY,
+          'Authorization':`Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer':       'return=minimal',
+        },
+        body: JSON.stringify({ status: novoStatus }),
+      }
+    );
+    if (!res.ok) throw new Error(await res.text());
+
+    // Atualiza local
+    const p = allPerfis.find(x => x.user_id === userId);
+    if (p) p.status = novoStatus;
+    clienteAtual.status = novoStatus;
+
+    // Atualiza badge e botões
+    const badge = document.getElementById('mc2-status-badge');
+    badge.textContent = novoStatus === 'suspenso' ? '🔴 Suspenso' : '✅ Ativo';
+    badge.style.color = novoStatus === 'suspenso' ? '#c0392b' : '#2e7d32';
+    document.getElementById('mc2-btn-ativar').style.display    = novoStatus === 'suspenso' ? 'inline-flex' : 'none';
+    document.getElementById('mc2-btn-suspender').style.display = novoStatus !== 'suspenso' ? 'inline-flex' : 'none';
+
+    toast2(novoStatus === 'suspenso' ? '🔴 Cliente suspenso' : '✅ Cliente ativado', novoStatus === 'suspenso' ? 'err' : 'ok');
     renderClientes2();
   } catch(e) {
     toast2('Erro: ' + e.message, 'err');
