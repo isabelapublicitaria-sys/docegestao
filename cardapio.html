@@ -929,7 +929,7 @@ body {
         </div>
         <div class="fld">
           <label>WhatsApp *</label>
-          <input type="tel" id="ck-tel" placeholder="(11) 99999-9999" />
+          <input type="tel" id="ck-tel" placeholder="(11) 99999-9999" oninput="formatarTelCheckout(this)" onblur="buscarClientePorTel(this.value)" />
         </div>
       </div>
       <div class="row2">
@@ -1419,6 +1419,55 @@ function openDrawer() {
   document.getElementById('drawer-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
+function formatarTelCheckout(input) {
+  let v = input.value.replace(/\D/g,'');
+  if (v.length > 11) v = v.slice(0,11);
+  if (v.length >= 7) v = '(' + v.slice(0,2) + ') ' + v.slice(2,7) + '-' + v.slice(7);
+  else if (v.length >= 3) v = '(' + v.slice(0,2) + ') ' + v.slice(2);
+  input.value = v;
+}
+
+async function buscarClientePorTel(tel) {
+  const telLimpo = tel.replace(/\D/g,'');
+  if (telLimpo.length < 8) return;
+  try {
+    const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA';
+    const res = await fetch(
+      `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/clientes?user_id=eq.${LOJA_USER_ID}&tel=ilike.*${telLimpo.slice(-8)}*&select=nome,email,aniversario&limit=1`,
+      { headers: { 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}` } }
+    );
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data && data.length > 0) {
+      const cli = data[0];
+      if (cli.nome) {
+        const nomeEl = document.getElementById('ck-nome');
+        if (nomeEl && !nomeEl.value) nomeEl.value = cli.nome;
+      }
+      if (cli.email) {
+        const emailEl = document.getElementById('ck-email');
+        if (emailEl && !emailEl.value) emailEl.value = cli.email;
+      }
+      if (cli.aniversario) {
+        const anivEl = document.getElementById('ck-aniversario');
+        if (anivEl && !anivEl.value) anivEl.value = cli.aniversario;
+      }
+      // Mostra feedback visual
+      const telEl = document.getElementById('ck-tel');
+      if (telEl) {
+        telEl.style.borderColor = '#2e7d32';
+        const hint = document.createElement('div');
+        hint.style.cssText = 'font-size:.72rem;color:#2e7d32;margin-top:3px';
+        hint.textContent = `✓ Olá, ${cli.nome}! Dados preenchidos automaticamente.`;
+        hint.id = 'ck-tel-hint';
+        document.getElementById('ck-tel-hint')?.remove();
+        telEl.parentNode.appendChild(hint);
+        setTimeout(() => hint.remove(), 3000);
+      }
+    }
+  } catch(e) { console.warn('buscarCliente:', e.message); }
+}
+
 function closeDrawer() {
   document.getElementById('drawer-overlay').classList.remove('open');
   document.body.style.overflow = '';

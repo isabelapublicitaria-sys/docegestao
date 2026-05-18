@@ -1188,7 +1188,7 @@
 
       <div class="nav-section-label">Gestão</div>
       <button class="nav-item" onclick="goTo('estoque')">
-        <span class="nav-icon">📦</span> Estoque
+        <span class="nav-icon">🍰</span> Cardápio
         <span class="nav-badge" id="estoque-badge" style="display:none">!</span>
       </button>
       <button class="nav-item" onclick="goTo('insumos')">
@@ -1272,6 +1272,12 @@
           <div class="stat-value" id="dash-clientes">0</div>
           <div class="stat-sub">cadastrados</div>
         </div>
+        <div class="stat-card caramel">
+          <div class="stat-icon">🎯</div>
+          <div class="stat-label">Ticket Médio</div>
+          <div class="stat-value" id="dash-ticket">R$ 0</div>
+          <div class="stat-sub" id="dash-ticket-sub">por pedido</div>
+        </div>
       </div>
 
       <div class="dash-grid">
@@ -1304,6 +1310,13 @@
               <div class="empty-state" style="padding:20px">
                 <p>Faça suas primeiras vendas!</p>
               </div>
+            </div>
+          </div>
+
+          <div class="chart-card" style="margin-top:20px">
+            <div class="chart-title">🎂 Aniversariantes do Mês</div>
+            <div id="dash-aniversariantes">
+              <div class="empty-state" style="padding:16px"><p>Nenhum aniversariante este mês</p></div>
             </div>
           </div>
         </div>
@@ -1487,7 +1500,7 @@
           <option>Chocolates</option>
           <option>Gorduras e Óleos</option>
           <option>Ovos</option>
-          <option>Frutas e Polpas</option>
+          <option>Frutas e Legumes</option>
           <option>Aromas e Essências</option>
           <option>Embalagens</option>
           <option>Outros</option>
@@ -1560,8 +1573,17 @@
                 <div><div class="prec-card-title">Nome do produto ou kit</div><div class="prec-card-sub">Dê um nome para salvar depois</div></div>
               </div>
               <div class="prec-card-body">
-                <div class="prec-field" style="margin-bottom:0">
+                <div class="prec-field" style="margin-bottom:10px">
                   <input type="text" id="prec-nome-produto" placeholder="Ex: Kit Degustação, Bolo Fatia, Brigadeiro Gourmet..." />
+                </div>
+                <div style="display:flex;gap:10px;align-items:center">
+                  <span style="font-size:.78rem;font-weight:600;color:var(--text-mid)">Tipo:</span>
+                  <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:.82rem">
+                    <input type="radio" name="prec-tipo" id="prec-tipo-fixo" value="fixo" checked> 📌 Item fixo
+                  </label>
+                  <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:.82rem">
+                    <input type="radio" name="prec-tipo" id="prec-tipo-campanha" value="campanha"> 🎯 Campanha
+                  </label>
                 </div>
               </div>
             </div>
@@ -1865,7 +1887,12 @@
           </div>
 
           <div id="cf-lista"></div>
-        </div>
+
+          <div style="margin-top:12px">
+            <button class="btn-sm ghost" onclick="copiarCustosUltimoMes()" style="font-size:.78rem">
+              📋 Copiar custos do mês anterior
+            </button>
+          </div>
 
       </div>
 
@@ -2440,7 +2467,7 @@
             <option>Chocolates</option>
             <option>Gorduras e Óleos</option>
             <option>Ovos</option>
-            <option>Frutas e Polpas</option>
+            <option>Frutas e Legumes</option>
             <option>Aromas e Essências</option>
             <option>Embalagens</option>
             <option>Outros</option>
@@ -3021,7 +3048,7 @@ const pageConfig = {
   dashboard: { title: 'Dashboard',        icon: null, label: null },
   pdv:       { title: 'Ponto de Venda',   icon: '＋', label: 'Novo produto' },
   vendas:    { title: 'Histórico de Vendas', icon: null, label: null },
-  estoque:   { title: 'Estoque',          icon: '＋', label: 'Novo produto' },
+  estoque:   { title: 'Cardápio',         icon: '＋', label: 'Novo produto' },
   insumos:   { title: 'Insumos',          icon: '＋', label: 'Novo insumo' },
   receitas:  { title: 'Fichas Técnicas',  icon: '＋', label: 'Nova receita' },
   clientes:  { title: 'Clientes',         icon: '＋', label: 'Novo cliente' },
@@ -3157,6 +3184,47 @@ async function renderDashboard() {
   document.getElementById('dash-hoje').textContent = formatMoney(totalHoje);
   document.getElementById('dash-hoje-sub').textContent = vendasHoje.length + ' pedido(s)';
   document.getElementById('dash-mes').textContent = formatMoney(totalMes);
+
+  // Ticket médio
+  const ticketMedio = vendasMes.length > 0 ? totalMes / vendasMes.length : 0;
+  document.getElementById('dash-ticket').textContent = formatMoney(ticketMedio);
+  document.getElementById('dash-ticket-sub').textContent = vendasMes.length + ' pedido(s) no mês';
+
+  // Aniversariantes do mês
+  const mesAtual = now.getMonth() + 1;
+  const aniversariantes = db.clientes.filter(c => {
+    if (!c.aniversario) return false;
+    const m = parseInt((c.aniversario||'').split('-')[1]);
+    return m === mesAtual;
+  }).sort((a,b) => {
+    const dA = parseInt((a.aniversario||'').split('-')[2]);
+    const dB = parseInt((b.aniversario||'').split('-')[2]);
+    return dA - dB;
+  });
+
+  const elAniv = document.getElementById('dash-aniversariantes');
+  if (elAniv) {
+    if (aniversariantes.length === 0) {
+      elAniv.innerHTML = '<div class="empty-state" style="padding:16px"><p>Nenhum aniversariante este mês</p></div>';
+    } else {
+      elAniv.innerHTML = aniversariantes.map(c => {
+        const dia  = (c.aniversario||'').split('-')[2];
+        const hoje = now.getDate();
+        const diaNum = parseInt(dia);
+        const isHoje = diaNum === hoje;
+        const whatsUrl = c.tel ? `https://wa.me/55${(c.tel||'').replace(/\D/g,'')}?text=Ol%C3%A1%20${encodeURIComponent(c.nome)}%2C%20feliz%20anivers%C3%A1rio!%20🎂%20Temos%20um%20desconto%20especial%20para%20voc%C3%AA!` : '#';
+        return `
+          <div style="display:flex;align-items:center;gap:12px;padding:10px;border-radius:10px;background:${isHoje?'#fff3e0':'var(--cream)'};margin-bottom:8px;border:${isHoje?'2px solid var(--caramel)':'1px solid var(--cream-dark)'}">
+            <div style="width:38px;height:38px;border-radius:50%;background:${isHoje?'var(--caramel)':'var(--cream-dark)'};display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">${isHoje?'🎂':'🎁'}</div>
+            <div style="flex:1">
+              <div style="font-weight:700;font-size:.88rem;color:var(--choco)">${c.nome}</div>
+              <div style="font-size:.72rem;color:var(--text-lt)">Dia ${diaNum}${isHoje?' — <strong style="color:var(--caramel)">Hoje!</strong>':''} ${c.tel?'· '+c.tel:''}</div>
+            </div>
+            ${c.tel ? `<a href="${whatsUrl}" target="_blank" style="background:#25d366;color:white;border:none;border-radius:8px;padding:6px 10px;font-size:.72rem;font-weight:700;cursor:pointer;text-decoration:none;white-space:nowrap">💬 WhatsApp</a>` : ''}
+          </div>`;
+      }).join('');
+    }
+  }
   document.getElementById('dash-estoque').textContent = db.produtos.length;
   document.getElementById('dash-estoque-sub').textContent = db.produtos.filter(p => p.qty <= p.minimo).length + ' com estoque baixo';
   document.getElementById('dash-clientes').textContent = db.clientes.length;
@@ -3434,7 +3502,7 @@ async function salvarProduto() {
         const qtdPorUnidade = parseFloat(item.qtd) / rendimento;
         const totalAbater   = qtdPorUnidade * qtdAdicionada;
         const estoqueAntes  = parseFloat(insumo.estoque) || 0;
-        insumo.estoque      = Math.max(0, estoqueAntes - totalAbater);
+        insumo.estoque      = estoqueAntes - totalAbater; // permite negativo
 
         console.log(`📦 ${insumo.nome}: ${estoqueAntes} → ${insumo.estoque} (abateu ${totalAbater.toFixed(3)} ${insumo.unidade})`);
 
@@ -4368,10 +4436,12 @@ function salvarPrecificacao() {
   const custoTot = custoIng + maoObra + fixos;
   const preco    = custoTot*(1+pctLucro/100);
 
+  const tipo = document.querySelector('input[name="prec-tipo"]:checked')?.value || 'fixo';
   const existing = db.precificacoes.findIndex(p => p.nome === nome);
   const obj = {
     id:         existing >= 0 ? db.precificacoes[existing].id : Date.now().toString(),
     nome,
+    tipo,
     itens:      JSON.parse(JSON.stringify(precKitItens)),
     tempo, valorHora, pctLucro, fixos, rendimento,
     custoIng, maoObra, custoTot, preco,
@@ -4404,7 +4474,12 @@ function renderPrecSaved() {
       <div style="padding:16px 18px 12px;border-bottom:1px solid var(--cream-dark);display:flex;justify-content:space-between;align-items:flex-start">
         <div>
           <div style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--choco);font-weight:600">${p.nome}</div>
-          <div style="font-size:0.72rem;color:var(--text-lt);margin-top:2px">${p.isKit?'🎁 Kit':'📦 Produto'} · ${p.itens.length} receita(s) · ${p.rendimento} unidade(s)</div>
+          <div style="font-size:0.72rem;color:var(--text-lt);margin-top:2px;display:flex;gap:6px;align-items:center">
+            ${p.tipo === 'campanha'
+              ? '<span style="background:#fff3e0;color:#e65100;border-radius:4px;padding:1px 6px;font-weight:700">🎯 Campanha</span>'
+              : '<span style="background:#e8f5e9;color:#2e7d32;border-radius:4px;padding:1px 6px;font-weight:700">📌 Fixo</span>'}
+            ${p.isKit?'🎁 Kit':'📦 Produto'} · ${p.itens.length} receita(s) · ${p.rendimento} un
+          </div>
         </div>
         <span class="badge badge-green" style="font-size:.7rem">${p.pctLucro}% margem</span>
       </div>
@@ -4586,6 +4661,37 @@ function salvarCfgMeta() {
   db.config.horasMes        = horasMes;
   saveDB();
   renderMetas();
+}
+
+function copiarCustosUltimoMes() {
+  const mesSel = document.getElementById('cf-filtro-mes')?.value;
+  if (!mesSel) { toast('Selecione o mês de destino primeiro', 'error'); return; }
+
+  // Pega mês anterior
+  const [ano, mes] = mesSel.split('-').map(Number);
+  const mesAnterior = mes === 1
+    ? `${ano-1}-12`
+    : `${ano}-${String(mes-1).padStart(2,'0')}`;
+
+  const custosAnt = (db.custos_fixos_itens || []).filter(c => c.mes === mesAnterior);
+  if (!custosAnt.length) {
+    toast(`Nenhum custo encontrado em ${mesAnterior}`, 'error');
+    return;
+  }
+
+  // Copia para o mês selecionado (sem duplicar os que já existem)
+  const existentes = new Set((db.custos_fixos_itens||[]).filter(c=>c.mes===mesSel).map(c=>c.nome));
+  let copiados = 0;
+  custosAnt.forEach(c => {
+    if (!existentes.has(c.nome)) {
+      db.custos_fixos_itens.push({ ...c, id: Date.now().toString() + Math.random(), mes: mesSel });
+      copiados++;
+    }
+  });
+
+  saveDB();
+  renderCustosFixos();
+  toast(`✅ ${copiados} custo(s) copiado(s) de ${mesAnterior}. Edite os valores se necessário.`, 'success');
 }
 
 function renderMetas() {
@@ -5359,14 +5465,23 @@ function calcularCustoUnit() {
   const prev  = document.getElementById('calc-preview');
 
   if (qtd > 0 && total > 0) {
-    const custoPorUnit = total / qtd;
+    let custoPorUnit = total / qtd;
+    let labelUnit    = unid;
+
+    // Grama: mostra custo por grama E por kg para referência
+    if (unid === 'g') {
+      labelUnit = 'g';
+    } else if (unid === 'ml') {
+      labelUnit = 'ml';
+    }
+
     prev.style.display = 'flex';
     document.getElementById('calc-unit-val').textContent =
-      'R$ ' + custoPorUnit.toFixed(2).replace('.', ',') + '/' + unid;
-    document.getElementById('calc-qtd-val').textContent =
-      qtd + ' ' + unid;
-    document.getElementById('calc-total-val').textContent =
-      'R$ ' + total.toFixed(2).replace('.', ',');
+      'R$ ' + custoPorUnit.toFixed(4).replace('.', ',') + '/' + labelUnit +
+      (unid === 'g' ? ' (R$ ' + (custoPorUnit * 1000).toFixed(2).replace('.', ',') + '/kg)' : '') +
+      (unid === 'ml' ? ' (R$ ' + (custoPorUnit * 1000).toFixed(2).replace('.', ',') + '/L)' : '');
+    document.getElementById('calc-qtd-val').textContent = qtd + ' ' + unid;
+    document.getElementById('calc-total-val').textContent = 'R$ ' + total.toFixed(2).replace('.', ',');
   } else {
     prev.style.display = 'none';
   }
@@ -5579,12 +5694,32 @@ async function salvarInsumo() {
 
   if (id) { db.insumos = db.insumos.map(i => i.id === id ? ins : i); }
   else    { db.insumos.push(ins); }
+
+  // Atualiza custo nas fichas técnicas que usam este insumo
+  db.receitas = db.receitas.map(r => {
+    const insumosList = r.insumos_lista || [];
+    const usaEsteInsumo = insumosList.some(x => x.insumo_id === ins.id || x.nome === ins.nome);
+    if (!usaEsteInsumo) return r;
+    const novaLista = insumosList.map(x => {
+      if (x.insumo_id !== ins.id && x.nome !== ins.nome) return x;
+      return { ...x, custo_unit: ins.custo_unit, custo_total: ins.custo_unit * x.qtd };
+    });
+    const novoCusto = novaLista.reduce((s,x) => s + (x.custo_total||0), 0);
+    return { ...r, insumos_lista: novaLista, custo: novoCusto };
+  });
+
   saveDB();
   await syncSupabase('insumos', ins);
+  // Sincroniza receitas atualizadas
+  for (const r of db.receitas) { await syncSupabase('receitas', r); }
 
   closeModal('modal-insumo');
-  // reset
-  document.getElementById('insumo-id').value = '';
+  // reset completo do formulário
+  ['insumo-id','insumo-nome','insumo-qtd-compra','insumo-preco-total',
+   'insumo-estoque','insumo-minimo','insumo-fornecedor','insumo-obs'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
   document.getElementById('modal-insumo-title').textContent = 'Novo Insumo';
   document.getElementById('calc-preview').style.display = 'none';
   toast(id ? 'Insumo atualizado!' : 'Insumo cadastrado!', 'success');
