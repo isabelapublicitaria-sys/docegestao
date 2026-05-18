@@ -2949,19 +2949,46 @@ async function getUID() {
 }
 
 async function syncSupabase(table, record, isDelete = false) {
-  if (!sbClient) return;
   try {
     const uid = await getUID();
-    if (!uid) return;
+    if (!uid) { console.warn('syncSupabase: uid null'); return; }
+
+    // Pega token JWT da sessão atual
+    let authToken = SUPABASE_KEY;
+    if (sbClient) {
+      const { data: sess } = await sbClient.auth.getSession();
+      if (sess?.session?.access_token) authToken = sess.session.access_token;
+    }
+
+    const base  = 'https://uiujarlepzavgxglkhdw.supabase.co/rest/v1';
+    const hdrs  = {
+      'apikey':       SUPABASE_KEY,
+      'Authorization':`Bearer ${authToken}`,
+      'Content-Type': 'application/json',
+      'Prefer':       'resolution=merge-duplicates,return=minimal',
+    };
+
     if (isDelete) {
-      await sbClient.from(table).delete().eq('id', record.id).eq('user_id', uid);
-    } else {
-      // Ensure itens is stored as JSON string for vendas
-      const payload = table === 'vendas'
-        ? { ...record, user_id: uid, itens: JSON.stringify(record.itens) }
+      await fetch(`${base}/${table}?id=eq.${record.id}&user_id=eq.${uid}`,
+        { method: 'DELETE', headers: hdrs });
+      return;
+    }
+
+    const payload = table === 'vendas'
+      ? { ...record, user_id: uid, itens: JSON.stringify(record.itens || []) }
+      : table === 'receitas'
+        ? { ...record, user_id: uid, insumos_lista: JSON.stringify(record.insumos_lista || []) }
         : { ...record, user_id: uid };
-      const { error } = await sbClient.from(table).upsert(payload, { onConflict: 'id' });
-      if (error) console.warn(`Supabase ${table} error:`, error.message);
+
+    const res = await fetch(`${base}/${table}`, {
+      method: 'POST',
+      headers: { ...hdrs, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      console.warn(`syncSupabase ${table} error:`, err);
     }
   } catch(e) {
     console.warn('Supabase sync error:', e.message);
