@@ -2998,7 +2998,8 @@ async function savePerfil() {
 async function abrirCardapioPublico(e) {
   e.preventDefault();
   const uid  = await getUID();
-  const base = 'https://isabelapublicitaria-sys.github.io/docegestao/cardapio.html';
+  // Usa o host atual (funciona tanto em localhost quanto em produção)
+  const base = window.location.origin + window.location.pathname.replace('index.html','').replace(/\/[^/]*$/, '/') + 'cardapio.html';
   const url  = uid ? `${base}?id=${uid}` : base;
   window.open(url, '_blank');
 }
@@ -3014,10 +3015,10 @@ function enterApp(user) {
   document.getElementById('cfg-nome').value = user.name;
   document.getElementById('cfg-empresa').value = user.company;
 
-  // Link do cardápio com UID do usuário logado
+  // Link do cardápio dinâmico
   getUID().then(uid => {
     if (uid) {
-      const base = 'https://isabelapublicitaria-sys.github.io/docegestao/cardapio.html';
+      const base = window.location.origin + window.location.pathname.replace('index.html','').replace(/\/[^/]*$/, '/') + 'cardapio.html';
       const link = document.getElementById('link-cardapio-publico');
       if (link) link.href = `${base}?id=${uid}`;
     }
