@@ -1678,24 +1678,15 @@
             <div class="prec-card" style="margin-bottom:18px">
               <div class="prec-card-header">
                 <div class="prec-card-icon" style="background:#fdf0e0">⏱</div>
-                <div><div class="prec-card-title">Mão de obra</div><div class="prec-card-sub">Seu tempo tem valor!</div></div>
+                <div><div class="prec-card-title">Mão de obra</div><div class="prec-card-sub">Calculado automaticamente pelo pró-labore</div></div>
               </div>
               <div class="prec-card-body">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                  <div class="prec-field" style="margin:0">
-                    <label>Tempo de preparo (min)</label>
-                    <input type="number" id="prec-tempo" placeholder="60" min="0" oninput="calcPreco()" />
-                  </div>
-                  <div class="prec-field" style="margin:0">
-                    <label style="display:flex;align-items:center;gap:6px">
-                      Valor da sua hora (R$)
-                      <span style="font-size:.65rem;background:var(--caramel);color:white;padding:1px 6px;border-radius:8px;cursor:pointer" onclick="preencherHoraDoProlabore()" title="Calcular da meta">do pró-labore</span>
-                    </label>
-                    <input type="number" id="prec-hora" placeholder="25,00" min="0" step="0.01" oninput="calcPreco()" />
-                  </div>
+                <div class="prec-field" style="margin:0">
+                  <label>Tempo de preparo (min)</label>
+                  <input type="number" id="prec-tempo" placeholder="60" min="0" oninput="calcPreco()" />
                 </div>
                 <div style="margin-top:10px;padding:9px 12px;background:var(--cream);border-radius:8px;font-size:.75rem;color:var(--text-lt)" id="prec-hora-info">
-                  💡 Clique em <strong style="color:var(--caramel-dk)">do pró-labore</strong> para calcular automaticamente o valor/hora baseado no pró-labore e horas de trabalho configurados.
+                  Configure pró-labore e horas/mês em Metas para calcular automaticamente.
                 </div>
               </div>
             </div>
@@ -1713,7 +1704,7 @@
                     <input type="number" id="prec-lucro" placeholder="40" min="0" oninput="calcPreco()" />
                   </div>
                   <div class="prec-field" style="margin:0">
-                    <label>Unidades finais</label>
+                    <label>Unidades finais <span style="font-size:.65rem;color:var(--text-lt)">(preenchido automaticamente)</span></label>
                     <input type="number" id="prec-rendimento" placeholder="1" min="1" value="1" oninput="calcPreco()" />
                   </div>
                   <div class="prec-field" style="margin:0">
@@ -4751,13 +4742,6 @@ function renderProducao() {
     }
   }
 
-  // Valor/hora do pró-labore
-  const valorHora = db.config.horasMes > 0 ? prolabore / db.config.horasMes : 0;
-  const elHoraInfo = document.getElementById('prec-hora-info');
-  if (elHoraInfo && prolabore > 0) {
-    elHoraInfo.innerHTML = `💡 Baseado no seu pró-labore: <strong style="color:var(--caramel-dk)">${formatMoney(prolabore)}</strong> ÷ <strong style="color:var(--caramel-dk)">${db.config.horasMes||160}h/mês</strong> = <strong style="color:var(--choco)">R$ ${valorHora.toFixed(2).replace('.',',')} /hora</strong>. Clique em <em>do pró-labore</em> para preencher.`;
-  }
-
   renderPrecKitLista();
   renderPrecSaved();
   calcPreco();
@@ -4769,22 +4753,27 @@ function adicionarReceitaCalc() {
   const unid = document.getElementById('prec-sel-unid').value;
   if (!sel.value) { toast('Selecione uma receita', 'error'); return; }
 
-  const opt    = sel.options[sel.selectedIndex];
+  const opt        = sel.options[sel.selectedIndex];
   const custoTotal = parseFloat(opt.dataset.custo) || 0;
-  const rend   = parseFloat(opt.dataset.rend) || 1;
+  const rend       = parseFloat(opt.dataset.rend) || 1;
 
-  // Calcula custo proporcional pela unidade escolhida
-  let custo = 0;
-  if (unid === 'porcao') {
-    custo = (custoTotal / rend) * qtd;
-  } else {
-    // Para g/un: custo por unidade da receita × qtd
-    custo = (custoTotal / rend) * qtd;
-  }
+  // Custo proporcional pela unidade/qtd escolhida
+  const custo = (custoTotal / rend) * qtd;
 
   const exist = precKitItens.find(x => x.receita_id === sel.value && x.unidade === unid);
   if (exist) { exist.qtd = qtd; exist.custo = custo; }
-  else precKitItens.push({ receita_id: sel.value, nome: opt.text.split(' (rend')[0], qtd, unidade: unid, custo });
+  else precKitItens.push({ receita_id: sel.value, nome: opt.text.split(' (rend')[0], qtd, unidade: unid, custo, rend });
+
+  // Preenche automaticamente "Unidades finais" com o rendimento da receita
+  // (só preenche se for produto único, não kit)
+  if (precKitItens.length === 1) {
+    const elRend = document.getElementById('prec-rendimento');
+    if (elRend) {
+      elRend.value = rend;
+      // Mostra dica
+      toast(`Rendimento preenchido automaticamente: ${rend} unidades`, 'success');
+    }
+  }
 
   sel.value = '';
   document.getElementById('prec-sel-qtd').value = '';
@@ -4824,13 +4813,28 @@ function renderPrecKitLista() {
 function calcPreco() {
   const rendimento  = Math.max(1, parseFloat(document.getElementById('prec-rendimento')?.value)||1);
   const tempo       = parseFloat(document.getElementById('prec-tempo')?.value)||0;
-  const valorHora   = parseFloat(document.getElementById('prec-hora')?.value)||0;
   const pctLucro    = parseFloat(document.getElementById('prec-lucro')?.value)||0;
   const fixosManual = parseFloat(document.getElementById('prec-fixos')?.value)||0;
 
-  const custoIngTotal  = precKitItens.reduce((s,i)=>s+i.custo,0);
-  const custoIngUnit   = custoIngTotal / rendimento;
-  const maoDeObraUnit  = ((tempo/60)*valorHora) / rendimento;
+  const custoIngTotal = precKitItens.reduce((s,i)=>s+i.custo,0);
+  const custoIngUnit  = custoIngTotal / rendimento;
+
+  // ── Mão de obra = Pró-labore ÷ horas/mês × (tempo ÷ 60) ÷ rendimento ──
+  const prolabore     = parseFloat(db.config.prolabore)||0;
+  const horasMesTotal = parseFloat(db.config.horasMes)||160;
+  const custoHoraMO   = horasMesTotal > 0 ? prolabore / horasMesTotal : 0;
+  const maoDeObraUnit = tempo > 0 && custoHoraMO > 0 ? (tempo/60) * custoHoraMO / rendimento : 0;
+
+  // Info mão de obra
+  const elHoraInfo = document.getElementById('prec-hora-info');
+  if (elHoraInfo) {
+    if (prolabore > 0 && horasMesTotal > 0) {
+      const moTotal = (tempo/60) * custoHoraMO;
+      elHoraInfo.innerHTML = `💡 Pró-labore: <strong style="color:var(--caramel-dk)">${formatMoney(prolabore)}</strong> ÷ <strong style="color:var(--caramel-dk)">${horasMesTotal}h/mês</strong> = <strong style="color:var(--choco)">R$ ${custoHoraMO.toFixed(2).replace('.',',')} /h</strong>${tempo > 0 ? ` × ${tempo}min = <strong style="color:var(--rose)">${formatMoney(moTotal)}</strong>` : ''}`;
+    } else {
+      elHoraInfo.innerHTML = `⚠️ Configure <strong>Pró-labore</strong> e <strong>Horas/mês</strong> em <strong>Metas</strong> para calcular automaticamente.`;
+    }
+  }
 
   // ── Custo fixo por TEMPO (SÓ custos fixos, sem pró-labore que já está em mão de obra) ──
   let fixosAuto = fixosManual;
@@ -4993,12 +4997,17 @@ function salvarPrecificacao() {
 
   const rendimento  = Math.max(1, parseFloat(document.getElementById('prec-rendimento')?.value)||1);
   const tempo       = parseFloat(document.getElementById('prec-tempo')?.value)||0;
-  const valorHora   = parseFloat(document.getElementById('prec-hora')?.value)||0;
   const pctLucro    = parseFloat(document.getElementById('prec-lucro')?.value)||0;
   const fixosManual = parseFloat(document.getElementById('prec-fixos')?.value)||0;
 
   const custoIngUnit  = precKitItens.reduce((s,i)=>s+i.custo,0) / rendimento;
-  const maoDeObraUnit = ((tempo/60)*valorHora) / rendimento;
+
+  // Mão de obra: Pró-labore ÷ horas/mês × (tempo ÷ 60) ÷ rendimento
+  const prolabore2    = parseFloat(db.config.prolabore)||0;
+  const horasMes2     = parseFloat(db.config.horasMes)||160;
+  const custoHoraMO2  = horasMes2 > 0 ? prolabore2 / horasMes2 : 0;
+  const maoDeObraUnit = tempo > 0 && custoHoraMO2 > 0 ? (tempo/60) * custoHoraMO2 / rendimento : 0;
+  const valorHora     = custoHoraMO2;
 
   // Custo fixo por TEMPO — só custos fixos (pró-labore já está em mão de obra)
   let fixosAuto = fixosManual;
@@ -5093,9 +5102,9 @@ function carregarPrecificacao(id) {
   if (!p) return;
   precKitItens = JSON.parse(JSON.stringify(p.itens));
   document.getElementById('prec-nome-produto').value = p.nome;
-  document.getElementById('prec-tempo').value      = p.tempo;
-  document.getElementById('prec-hora').value       = p.valorHora;
-  document.getElementById('prec-lucro').value      = p.pctLucro;
+  document.getElementById('prec-tempo').value     = p.tempo;
+  if (document.getElementById('prec-hora')) document.getElementById('prec-hora').value = p.valorHora || '';
+  document.getElementById('prec-lucro').value     = p.pctLucro;
   document.getElementById('prec-fixos').value      = p.fixos;
   document.getElementById('prec-rendimento').value = p.rendimento;
   switchPrecTab('calc');
