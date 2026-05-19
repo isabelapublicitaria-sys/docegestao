@@ -3,29 +3,29 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cardápio — Doce Gestão</title>
+<title>Cardápio — Gestta</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
-  --cream:     #fdf6ec;
-  --cream2:    #f5e9d4;
-  --cream3:    #ecdcbe;
-  --choco:     #2c1503;
-  --choco2:    #4a2410;
-  --choco3:    #7a4520;
-  --caramel:   #c47c2b;
-  --caramel2:  #e09a4a;
-  --rose:      #c4735a;
-  --gold:      #b89550;
+  --cream:     #fdf9fb;
+  --cream2:    #f5eef4;
+  --cream3:    #e8d8e8;
+  --choco:     #3d2b3d;
+  --choco2:    #5a3d50;
+  --choco3:    #7a5068;
+  --caramel:   #d4849a;
+  --caramel2:  #e8a8bc;
+  --rose:      #d4849a;
+  --gold:      #d4b896;
   --white:     #fff;
-  --text:      #2c1503;
-  --text2:     #6b3d1e;
-  --text3:     #a07050;
+  --text:      #3d2b35;
+  --text2:     #7a5068;
+  --text3:     #a08090;
   --r:         16px;
   --rs:        10px;
-  --shadow:    0 4px 30px rgba(44,21,3,.1);
-  --shadowL:   0 12px 60px rgba(44,21,3,.18);
+  --shadow:    0 4px 30px rgba(61,43,53,.08);
+  --shadowL:   0 12px 60px rgba(61,43,53,.14);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -55,7 +55,7 @@ body {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: var(--choco);
+  background: #3d2b3d;
 }
 
 /* Texture overlay */
@@ -63,10 +63,14 @@ body {
   content: '';
   position: absolute; inset: 0;
   background:
-    radial-gradient(ellipse 80% 60% at 50% 100%, rgba(196,124,43,.35) 0%, transparent 70%),
-    radial-gradient(ellipse 60% 40% at 20% 20%, rgba(196,115,90,.2) 0%, transparent 60%),
-    radial-gradient(ellipse 40% 50% at 80% 10%, rgba(184,149,80,.15) 0%, transparent 55%);
+    radial-gradient(ellipse 80% 60% at 50% 100%, rgba(212,132,154,.30) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 40% at 20% 20%, rgba(180,140,200,.20) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 50% at 80% 10%, rgba(212,184,150,.15) 0%, transparent 55%);
 }
+
+/* Grain texture */
+.hero.hero-custom-bg::before { display: none; }
+.hero.hero-custom-bg::after  { display: none; }
 
 /* Grain texture */
 .hero::after {
@@ -91,8 +95,8 @@ body {
 
 .hero-badge {
   display: inline-flex; align-items: center; gap: 8px;
-  background: rgba(196,124,43,.2);
-  border: 1px solid rgba(196,124,43,.4);
+  background: rgba(212,132,154,.2);
+  border: 1px solid rgba(212,132,154,.4);
   color: var(--caramel2);
   font-size: .75rem; font-weight: 500; letter-spacing: 2px;
   text-transform: uppercase;
@@ -140,15 +144,15 @@ body {
 .btn-hero {
   display: inline-flex; align-items: center; gap: 10px;
   padding: 16px 40px;
-  background: linear-gradient(135deg, var(--caramel), #a8631c);
+  background: linear-gradient(135deg, var(--rose), #b06080);
   color: white; font-family: 'Jost', sans-serif;
   font-size: 1rem; font-weight: 500; letter-spacing: .5px;
   border: none; border-radius: 50px;
   cursor: pointer; text-decoration: none;
-  box-shadow: 0 8px 32px rgba(196,124,43,.45);
+  box-shadow: 0 8px 32px rgba(212,132,154,.45);
   transition: all .3s;
 }
-.btn-hero:hover { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(196,124,43,.55); }
+.btn-hero:hover { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(212,132,154,.55); }
 
 .hero-scroll {
   position: absolute; bottom: 36px; left: 50%;
@@ -179,7 +183,7 @@ body {
 ──────────────────────────────────────── */
 .menubar {
   position: sticky; top: 0; z-index: 100;
-  background: rgba(44,21,3,.97);
+  background: rgba(61,43,61,.97);
   backdrop-filter: blur(12px);
   padding: 0 24px;
   display: flex; align-items: center;
@@ -205,7 +209,7 @@ body {
 }
 .cat-btn:hover { color: white; }
 .cat-btn.active {
-  background: var(--caramel); color: white;
+  background: var(--rose); color: white;
 }
 .cart-bubble {
   position: relative; margin-left: 20px;
@@ -259,7 +263,7 @@ body {
   font-family: 'Jost', sans-serif; font-size: .95rem;
   color: var(--text); outline: none; transition: all .25s;
 }
-.search-wrap input:focus { border-color: var(--caramel); box-shadow: 0 0 0 4px rgba(196,124,43,.1); }
+.search-wrap input:focus { border-color: var(--caramel); box-shadow: 0 0 0 4px rgba(212,132,154,.1); }
 .search-wrap .icon {
   position: absolute; left: 18px; top: 50%;
   transform: translateY(-50%);
@@ -349,13 +353,13 @@ body {
 }
 .btn-add {
   width: 36px; height: 36px; border-radius: 50%;
-  background: var(--choco); color: var(--caramel2);
+  background: var(--choco); color: var(--cream);
   border: none; font-size: 1.1rem; font-weight: 700;
   cursor: pointer; transition: all .2s;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
-.btn-add:hover { background: var(--caramel); color: white; transform: scale(1.1); }
+.btn-add:hover { background: var(--rose); color: white; transform: scale(1.1); }
 .btn-add:active { transform: scale(.95); }
 
 /* Empty state */
@@ -414,7 +418,7 @@ body {
   background: white; border-radius: 12px;
   padding: 12px 14px;
   display: flex; align-items: center; gap: 12px;
-  box-shadow: 0 2px 12px rgba(44,21,3,.06);
+  box-shadow: 0 2px 12px rgba(61,43,61,.06);
 }
 .di-init {
   width: 40px; height: 40px; border-radius: 10px;
@@ -440,7 +444,7 @@ body {
   cursor: pointer; transition: all .2s;
   display: flex; align-items: center; justify-content: center;
 }
-.di-btn:hover { background: var(--caramel); color: white; border-color: transparent; }
+.di-btn:hover { background: var(--rose); color: white; border-color: transparent; }
 .di-qty-num { font-size: .88rem; font-weight: 600; min-width: 18px; text-align: center; }
 .di-total { font-weight: 700; color: var(--choco2); font-size: .9rem; white-space: nowrap; }
 
@@ -471,14 +475,14 @@ body {
 
 .btn-checkout {
   width: 100%; padding: 15px;
-  background: linear-gradient(135deg, var(--caramel), #a8631c);
+  background: linear-gradient(135deg, var(--rose), #b06080);
   color: white; border: none; border-radius: 12px;
   font-family: 'Jost', sans-serif; font-size: 1rem; font-weight: 500;
   cursor: pointer; transition: all .3s;
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  box-shadow: 0 6px 20px rgba(196,124,43,.4);
+  box-shadow: 0 6px 20px rgba(212,132,154,.4);
 }
-.btn-checkout:hover { transform: translateY(-1px); box-shadow: 0 10px 28px rgba(196,124,43,.5); }
+.btn-checkout:hover { transform: translateY(-1px); box-shadow: 0 10px 28px rgba(212,132,154,.5); }
 .btn-checkout:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 
 /* ────────────────────────────────────────
@@ -511,7 +515,7 @@ body {
 }
 .modal-hdr-icon {
   width: 48px; height: 48px; border-radius: 14px;
-  background: linear-gradient(135deg, var(--caramel), #a8631c);
+  background: linear-gradient(135deg, var(--rose), #b06080);
   display: flex; align-items: center; justify-content: center;
   font-size: 1.4rem; flex-shrink: 0;
 }
@@ -543,7 +547,7 @@ body {
 }
 .fld input:focus, .fld textarea:focus, .fld select:focus {
   border-color: var(--caramel);
-  box-shadow: 0 0 0 3px rgba(196,124,43,.1);
+  box-shadow: 0 0 0 3px rgba(212,132,154,.1);
 }
 .fld textarea { resize: vertical; min-height: 80px; }
 
@@ -557,7 +561,7 @@ body {
   background: none; cursor: pointer; transition: all .25s;
   text-align: left; font-family: 'Jost', sans-serif;
 }
-.entrega-opt.active { border-color: var(--caramel); background: #fff9f2; }
+.entrega-opt.active { border-color: var(--caramel); background: #fdf9fb; }
 .entrega-opt .eo-icon { font-size: 1.2rem; margin-bottom: 4px; }
 .entrega-opt .eo-label { font-size: .82rem; font-weight: 600; color: var(--choco); display: block; }
 .entrega-opt .eo-sub   { font-size: .72rem; color: var(--text3); }
@@ -570,7 +574,7 @@ body {
   font-family: 'Jost', sans-serif; font-size: .82rem; font-weight: 500;
   color: var(--text2); display: flex; align-items: center; gap: 8px;
 }
-.pag-opt.active { border-color: var(--caramel); background: #fff9f2; color: var(--choco); }
+.pag-opt.active { border-color: var(--caramel); background: #fdf9fb; color: var(--choco); }
 
 /* Order summary in modal */
 .order-summary {
@@ -590,14 +594,14 @@ body {
 /* Buttons */
 .btn-prim {
   padding: 14px 28px;
-  background: linear-gradient(135deg, var(--caramel), #a8631c);
+  background: linear-gradient(135deg, var(--rose), #b06080);
   color: white; border: none; border-radius: 10px;
   font-family: 'Jost', sans-serif; font-size: .95rem; font-weight: 500;
   cursor: pointer; transition: all .3s;
   display: flex; align-items: center; gap: 6px;
-  box-shadow: 0 4px 16px rgba(196,124,43,.35);
+  box-shadow: 0 4px 16px rgba(212,132,154,.35);
 }
-.btn-prim:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(196,124,43,.45); }
+.btn-prim:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(212,132,154,.45); }
 .btn-prim:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 .btn-sec {
   padding: 14px 22px;
@@ -622,10 +626,10 @@ body {
 .success-screen.open { opacity: 1; pointer-events: all; }
 .success-icon {
   width: 90px; height: 90px; border-radius: 50%;
-  background: linear-gradient(135deg, var(--caramel), #a8631c);
+  background: linear-gradient(135deg, var(--rose), #b06080);
   display: flex; align-items: center; justify-content: center;
   font-size: 2.5rem; margin: 0 auto 24px;
-  box-shadow: 0 12px 40px rgba(196,124,43,.5);
+  box-shadow: 0 12px 40px rgba(212,132,154,.5);
   animation: popIn .5s cubic-bezier(.175,.885,.32,1.275) both;
 }
 @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
@@ -679,7 +683,7 @@ body {
   border-radius: 1px; overflow: hidden;
 }
 .loading-bar-fill {
-  height: 100%; width: 0; background: var(--caramel);
+  height: 100%; width: 0; background: var(--rose);
   animation: load 1.5s ease forwards;
 }
 @keyframes load { to { width: 100%; } }
@@ -771,7 +775,7 @@ body {
 
 <!-- LOADING SCREEN -->
 <div class="loading-screen" id="loading">
-  <div class="loading-name" id="loading-name">Doce Gestão</div>
+  <div class="loading-name" id="loading-name">Gestta</div>
   <div class="loading-bar"><div class="loading-bar-fill"></div></div>
 </div>
 
@@ -817,7 +821,7 @@ body {
 
 <!-- MENU BAR -->
 <nav class="menubar" id="menubar">
-  <div class="menubar-brand" id="mb-brand">Doce Gestão</div>
+  <div class="menubar-brand" id="mb-brand">Gestta</div>
   <div class="cats" id="cats-nav"></div>
   <button class="cart-bubble" onclick="openDrawer()" title="Carrinho">
     🛒
@@ -840,7 +844,7 @@ body {
 
 <!-- FOOTER -->
 <footer class="footer">
-  <div class="footer-name" id="footer-nome">Doce Gestão</div>
+  <div class="footer-name" id="footer-nome">Gestta</div>
   <div class="footer-sub" id="footer-sub">Confeitaria artesanal • feito com amor</div>
 
   <!-- Infos da loja no rodapé -->
@@ -864,7 +868,7 @@ body {
     <a class="footer-link" id="footer-whats" href="#" target="_blank">WhatsApp</a>
     <a class="footer-link" href="#cardapio">Cardápio</a>
   </div>
-  <div class="footer-credit">Powered by Doce Gestão</div>
+  <div class="footer-credit">Powered by Gestta</div>
 </footer>
 
 <!-- CART DRAWER -->
@@ -1103,7 +1107,7 @@ function mostrarLojaFechada() {
   document.getElementById('banner-fechada')?.remove();
   const banner = document.createElement('div');
   banner.id = 'banner-fechada';
-  banner.style.cssText = 'background:#2c1503;color:#fdf6ec;text-align:center;padding:14px 24px;font-size:.88rem;font-weight:600;font-family:"Jost",sans-serif;letter-spacing:.3px;position:sticky;top:60px;z-index:99;';
+  banner.style.cssText = 'background:#3d2b3d;color:#fdf9fb;text-align:center;padding:14px 24px;font-size:.88rem;font-weight:600;font-family:"Jost",sans-serif;letter-spacing:.3px;position:sticky;top:60px;z-index:99;';
   banner.innerHTML = '🔴 <strong>Loja temporariamente fechada</strong> — não estamos recebendo pedidos no momento. Volte em breve!';
   const menubar = document.getElementById('menubar');
   if (menubar) menubar.after(banner);
@@ -1136,22 +1140,26 @@ async function loadProdutos() {
   const base    = 'https://uiujarlepzavgxglkhdw.supabase.co/rest/v1';
   const headers = { 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}` };
 
+  // Busca todos os produtos do usuário com preço > 0
+  // disponivel_cardapio pode ser null em produtos antigos — tratamos como true
   let url = `${base}/produtos?preco=gt.0&order=categoria,nome`;
   if (LOJA_USER_ID) url += `&user_id=eq.${LOJA_USER_ID}`;
 
   const res = await fetch(url, { headers });
   if (!res.ok) throw new Error(`Produtos: ${res.status} ${await res.text()}`);
   const data = await res.json();
-  produtos = data || [];
+
+  // Filtra: mostra se disponivel_cardapio é true OU null/undefined (compatibilidade)
+  produtos = (data || []).filter(p => p.disponivel_cardapio !== false);
   filtered = [...produtos];
-  console.log(`✅ ${produtos.length} produto(s) carregado(s)`);
+  console.log(`✅ ${produtos.length} produto(s) no cardápio (${data.length} total)`);
 }
 
 // ════════════════════════════════════════
 // HERO & LAYOUT
 // ════════════════════════════════════════
 function renderHero() {
-  const nome = perfil.empresa || 'Doce Gestão';
+  const nome = perfil.empresa || 'Gestta';
   const parts = nome.split(' ');
   const last  = parts.pop();
   const rest  = parts.join(' ');
@@ -1162,12 +1170,31 @@ function renderHero() {
   document.getElementById('loading-name').textContent = nome;
   document.title = `Cardápio — ${nome}`;
 
+  // Imagem de fundo do hero (substitui o marrom)
+  // Fundo do hero — foto ou cor sólida
+  const heroEl = document.getElementById('hero');
+  if (heroEl) {
+    if (perfil.hero_tipo === 'cor' && perfil.hero_cor) {
+      heroEl.style.background = perfil.hero_cor;
+      heroEl.classList.add('hero-custom-bg');
+    } else if (perfil.hero_img_url) {
+      heroEl.style.background = `url('${perfil.hero_img_url}') center/cover no-repeat`;
+      heroEl.classList.add('hero-custom-bg');
+      // Overlay escuro para legibilidade
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:absolute;inset:0;background:rgba(0,0,0,0.45);z-index:0';
+      overlay.id = 'hero-overlay';
+      document.getElementById('hero-overlay')?.remove();
+      heroEl.insertBefore(overlay, heroEl.firstChild);
+    }
+  }
+
   // Logo maior no hero
   if (perfil.logo_url) {
     document.querySelectorAll('.hero-logo-img').forEach(e => e.remove());
     const logoWrap = document.createElement('div');
     logoWrap.className = 'hero-logo-img';
-    logoWrap.style.cssText = 'width:120px;height:120px;border-radius:50%;overflow:hidden;border:3px solid rgba(196,124,43,.4);margin:0 auto 18px;flex-shrink:0;';
+    logoWrap.style.cssText = 'width:120px;height:120px;border-radius:50%;overflow:hidden;border:3px solid rgba(212,132,154,.4);margin:0 auto 18px;flex-shrink:0;';
     logoWrap.innerHTML = `<img src="${perfil.logo_url}" style="width:100%;height:100%;object-fit:cover" />`;
     document.querySelector('.hero-content').prepend(logoWrap);
   }
@@ -1244,6 +1271,23 @@ function renderCatalog(prods) {
     return;
   }
 
+  // Destaques no topo
+  const destaques = prods.filter(p => p.destaque);
+  let html = '';
+
+  if (destaques.length > 0) {
+    html += `
+    <div class="cat-section" id="cat-destaques">
+      <div class="cat-section-title" style="color:#b8860b">
+        ⭐ Destaques
+        <span>${destaques.length} ${destaques.length===1?'item':'itens'}</span>
+      </div>
+      <div class="prod-grid">
+        ${destaques.map(p => renderCard(p, true)).join('')}
+      </div>
+    </div>`;
+  }
+
   // Group by category
   const cats = {};
   prods.forEach(p => {
@@ -1252,7 +1296,7 @@ function renderCatalog(prods) {
     cats[c].push(p);
   });
 
-  el.innerHTML = Object.entries(cats).map(([cat, items]) => `
+  html += Object.entries(cats).map(([cat, items]) => `
     <div class="cat-section" id="cat-${slug(cat)}">
       <div class="cat-section-title">
         ${cat}
@@ -1263,9 +1307,14 @@ function renderCatalog(prods) {
       </div>
     </div>
   `).join('');
+
+  el.innerHTML = html;
+
+  // Se loja fechada, esconde botões
+  if (perfil.loja_aberta === false) mostrarLojaFechada();
 }
 
-function renderCard(p) {
+function renderCard(p, isDestaque = false) {
   const esgotado = p.qty !== undefined && p.qty <= 0;
   const bg = getCatColor(p.categoria);
   const inicial = (p.nome||'?').charAt(0).toUpperCase();
@@ -1844,7 +1893,6 @@ init().then(() => {
 function initRealtime() {
   if (!LOJA_USER_ID) return;
 
-  // Escuta mudanças na tabela produtos em tempo real
   sb.channel('cardapio-produtos')
     .on('postgres_changes', {
       event: '*',
@@ -1855,21 +1903,29 @@ function initRealtime() {
       const { eventType, new: novo, old } = payload;
 
       if (eventType === 'INSERT') {
-        if (novo.preco > 0) produtos.push(novo);
+        // Adiciona se disponivel e tem preço
+        if (novo.preco > 0 && novo.disponivel_cardapio !== false) produtos.push(novo);
       } else if (eventType === 'UPDATE') {
         const idx = produtos.findIndex(p => p.id === novo.id);
-        if (idx >= 0) produtos[idx] = novo;
-        else if (novo.preco > 0) produtos.push(novo);
+        if (novo.disponivel_cardapio === false) {
+          // Remove se foi desabilitado
+          if (idx >= 0) produtos.splice(idx, 1);
+        } else if (idx >= 0) {
+          produtos[idx] = novo;
+        } else if (novo.preco > 0) {
+          produtos.push(novo);
+        }
       } else if (eventType === 'DELETE') {
         produtos = produtos.filter(p => p.id !== old.id);
       }
 
-      // Re-renderiza sem afetar o carrinho
       filtered = [...produtos];
       renderCatalog();
       renderCatsNav();
     })
-    .subscribe();
+    .subscribe(status => {
+      if (status === 'SUBSCRIBED') console.log('✅ Realtime conectado');
+    });
 }
 </script>
 </body>
