@@ -5243,20 +5243,30 @@ async function salvarCfgMeta() {
   saveDB();
   renderMetas();
 
-  // Salva no Supabase via perfis
-  const uid = await getUID();
-  if (uid) {
-    fetch(`https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/perfis?user_id=eq.${uid}`, {
-      method: 'PATCH',
-      headers: {
-        'apikey':       SUPABASE_KEY,
-        'Authorization':`Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json',
-        'Prefer':       'return=minimal',
-      },
-      body: JSON.stringify({ meta_faturamento: metaFat, prolabore, horas_mes: horasMes }),
-    }).catch(e => console.warn('salvarCfgMeta:', e));
-  }
+  // Salva no Supabase com JWT da sessão
+  try {
+    const uid = await getUID();
+    if (!uid) return;
+    let token = SUPABASE_KEY;
+    if (sbClient) {
+      const { data: sess } = await sbClient.auth.getSession();
+      if (sess?.session?.access_token) token = sess.session.access_token;
+    }
+    const res = await fetch(
+      `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/perfis?user_id=eq.${uid}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'apikey':       SUPABASE_KEY,
+          'Authorization':`Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Prefer':       'return=minimal',
+        },
+        body: JSON.stringify({ meta_faturamento: metaFat, prolabore, horas_mes: horasMes }),
+      }
+    );
+    if (!res.ok) console.warn('salvarCfgMeta error:', await res.text());
+  } catch(e) { console.warn('salvarCfgMeta:', e.message); }
 }
 
 function copiarCustosUltimoMes() {
@@ -5291,13 +5301,16 @@ function copiarCustosUltimoMes() {
 }
 
 function renderMetas() {
-  // Restaura campos a partir do db.config (só preenche se vazio)
+  // Restaura campos a partir do db.config — sempre atualiza
   const elMetaFat = document.getElementById('cfg-meta-faturamento');
   const elPro     = document.getElementById('cfg-prolabore');
   const elHrs     = document.getElementById('cfg-horas-mes');
-  if (elMetaFat && !elMetaFat.value && db.config.metaFaturamento) elMetaFat.value = db.config.metaFaturamento;
-  if (elPro && !elPro.value && db.config.prolabore) elPro.value = db.config.prolabore;
-  if (elHrs && !elHrs.value) elHrs.value = db.config.horasMes || 160;
+  if (elMetaFat && document.activeElement !== elMetaFat)
+    elMetaFat.value = db.config.metaFaturamento || '';
+  if (elPro && document.activeElement !== elPro)
+    elPro.value = db.config.prolabore || '';
+  if (elHrs && document.activeElement !== elHrs)
+    elHrs.value = db.config.horasMes || 160;
 
   // Lê sempre o valor atual dos campos
   const metaFaturamento = parseFloat(elMetaFat?.value) || parseFloat(db.config.metaFaturamento) || 0;
