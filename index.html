@@ -1923,16 +1923,8 @@
       <div class="meta-config-box">
         <div class="meta-config-title">⚙️ Configuração da Meta</div>
 
-        <!-- Linha 1: Meta, Pró-labore, Horas, Filtro -->
+        <!-- Pró-labore e horas (fixos, valem para todos os meses) -->
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px">
-          <div class="prec-field" style="margin:0">
-            <label style="display:flex;align-items:center;gap:6px">
-              🎯 Meta de faturamento (R$/mês)
-              <span style="font-size:.65rem;background:var(--choco);color:white;padding:1px 7px;border-radius:8px">manual</span>
-            </label>
-            <input type="number" id="cfg-meta-faturamento" placeholder="Ex: 8.000,00" min="0" step="0.01"
-              style="padding:11px 14px;border:2px solid var(--caramel-lt);border-radius:10px;font-family:'Comfortaa',sans-serif;font-size:0.9rem;background:#fffaf4;outline:none;width:100%;transition:var(--transition)" />
-          </div>
           <div class="prec-field" style="margin:0">
             <label>Pró-labore desejado (R$/mês)</label>
             <input type="number" id="cfg-prolabore" placeholder="3.000,00" min="0" step="0.01" />
@@ -1942,14 +1934,38 @@
             <input type="number" id="cfg-horas-mes" placeholder="160" min="1" step="1" />
           </div>
           <div class="prec-field" style="margin:0">
-            <label>Filtrar mês</label>
+            <label>Filtrar histórico por ano</label>
             <select id="meta-mes-filtro" onchange="renderMetas()">
               <!-- filled by JS -->
             </select>
           </div>
         </div>
-        <button onclick="salvarCfgMeta()" style="background:linear-gradient(135deg,var(--rose),var(--rose-dk));color:white;border:none;border-radius:10px;padding:10px 24px;font-family:'Comfortaa',sans-serif;font-size:.85rem;font-weight:700;cursor:pointer;margin-bottom:16px">
-          💾 Salvar configurações
+
+        <!-- Meta por mês -->
+        <div style="background:var(--cream);border-radius:12px;padding:14px 16px;margin-bottom:14px;border:2px solid var(--caramel-lt)">
+          <div style="font-size:.8rem;font-weight:700;color:var(--text-mid);margin-bottom:10px">
+            🎯 Meta de faturamento por mês
+            <span style="font-size:.65rem;background:var(--choco);color:white;padding:1px 7px;border-radius:8px;margin-left:6px">define por mês</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-end">
+            <div class="prec-field" style="margin:0;flex:0 0 160px">
+              <label>Mês</label>
+              <input type="month" id="cfg-meta-mes" style="padding:10px 12px;border:2px solid var(--cream-mid);border-radius:10px;font-family:'Comfortaa',sans-serif;font-size:.88rem;background:var(--white);outline:none;width:100%" />
+            </div>
+            <div class="prec-field" style="margin:0;flex:1">
+              <label>Meta de faturamento (R$)</label>
+              <input type="number" id="cfg-meta-faturamento" placeholder="Ex: 8.000,00" min="0" step="0.01"
+                style="padding:10px 14px;border:2px solid var(--caramel-lt);border-radius:10px;font-family:'Comfortaa',sans-serif;font-size:.9rem;background:#fffaf4;outline:none;width:100%" />
+            </div>
+            <button onclick="salvarCfgMeta()" style="background:linear-gradient(135deg,var(--rose),var(--rose-dk));color:white;border:none;border-radius:10px;padding:11px 20px;font-family:'Comfortaa',sans-serif;font-size:.85rem;font-weight:700;cursor:pointer;white-space:nowrap;height:42px">
+              💾 Salvar meta
+            </button>
+          </div>
+          <div id="metas-mensais-lista" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px"></div>
+        </div>
+
+        <button onclick="salvarCfgProlabore()" style="background:linear-gradient(135deg,var(--choco),var(--choco-mid));color:white;border:none;border-radius:10px;padding:10px 24px;font-family:'Comfortaa',sans-serif;font-size:.85rem;font-weight:700;cursor:pointer;margin-bottom:16px">
+          💾 Salvar pró-labore e horas
         </button>
 
         <!-- Info valor/hora -->
@@ -3469,15 +3485,16 @@ function popularSelectReceitas(receitaIdAtual) {
 }
 
 function renderPage(page) {
-  if (page === 'dashboard')  renderDashboard(); // async — self-contained
+  if (page === 'dashboard')  renderDashboard();
   if (page === 'estoque')    renderEstoque();
   if (page === 'pdv')        renderPDV();
-  if (page === 'vendas')     renderVendas();    // async — self-contained
+  if (page === 'vendas')     renderVendas();
   if (page === 'clientes')   renderClientes();
   if (page === 'receitas')   renderReceitas();
-  if (page === 'financeiro')  renderFinanceiro();
+  if (page === 'financeiro') renderFinanceiro();
   if (page === 'insumos')    renderInsumos();
   if (page === 'producao')   renderProducao();
+  if (page === 'metas')      carregarMetas(); // busca do banco antes de renderizar
   if (page === 'config')     { carregarConfig(); setTimeout(renderHorarios, 150); }
 }
 
@@ -5367,56 +5384,81 @@ const MESES_NOMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julh
 let mesSelecionado = null;
 
 async function salvarCfgMeta() {
-  // Lê os valores dos campos com fallback seguro
-  const metaFat  = parseFloat(document.getElementById('cfg-meta-faturamento')?.value.replace(',','.')) || 0;
-  const prolabore= parseFloat(document.getElementById('cfg-prolabore')?.value.replace(',','.')) || 0;
-  const horasMes = parseFloat(document.getElementById('cfg-horas-mes')?.value) || 160;
+  const mesEl = document.getElementById('cfg-meta-mes');
+  const valEl = document.getElementById('cfg-meta-faturamento');
+  const mes   = mesEl?.value;
+  const valor = parseFloat(valEl?.value?.replace(',','.')) || 0;
 
-  // Persiste no db local
-  db.config.metaFaturamento = metaFat;
-  db.config.prolabore       = prolabore;
-  db.config.horasMes        = horasMes;
+  if (!mes)   { toast('Selecione o mês da meta', 'error'); return; }
+  if (!valor) { toast('Informe o valor da meta', 'error'); return; }
+
+  if (!db.config.metasMensais) db.config.metasMensais = {};
+  db.config.metasMensais[mes] = valor;
+  const agora = new Date();
+  const mesAtual = `${agora.getFullYear()}-${String(agora.getMonth()+1).padStart(2,'0')}`;
+  if (mes === mesAtual) db.config.metaFaturamento = valor;
   saveDB();
 
-  // Salva no Supabase com JWT da sessão
+  const uid = await getUID();
+  if (!uid) { toast('⚠️ Usuário não identificado', 'error'); return; }
+  let token = SUPABASE_KEY;
+  if (sbClient) {
+    const { data: sess } = await sbClient.auth.getSession();
+    if (sess?.session?.access_token) token = sess.session.access_token;
+  }
   try {
-    const uid = await getUID();
-    if (!uid) { toast('⚠️ Usuário não identificado', 'error'); return; }
-    let token = SUPABASE_KEY;
-    if (sbClient) {
-      const { data: sess } = await sbClient.auth.getSession();
-      if (sess?.session?.access_token) token = sess.session.access_token;
-    }
     const res = await fetch(
       `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/perfis?user_id=eq.${uid}`,
-      {
-        method: 'PATCH',
-        headers: {
-          'apikey':       SUPABASE_KEY,
-          'Authorization':`Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Prefer':       'return=minimal',
-        },
-        body: JSON.stringify({
-          meta_faturamento: metaFat,
-          prolabore:        prolabore,
-          horas_mes:        horasMes,
-        }),
+      { method: 'PATCH',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ meta_faturamento: db.config.metaFaturamento || valor, metas_mensais: JSON.stringify(db.config.metasMensais) })
       }
     );
-    if (!res.ok) {
-      const err = await res.text();
-      console.warn('salvarCfgMeta error:', err);
-      toast('⚠️ Erro ao salvar no banco: ' + res.status, 'error');
+    if (res.ok) {
+      toast(`✅ Meta de ${formatMesNome(mes)}: ${formatMoney(valor)} salva!`, 'success');
+      valEl.value = '';
+      renderMetas();
     } else {
-      toast('✅ Meta e pró-labore salvos!', 'success');
-      renderMetas(); // atualiza a tela só após confirmação do banco
+      toast('⚠️ Erro ao salvar: ' + res.status + ' — veja console (F12)', 'error');
+      console.warn('salvarCfgMeta:', await res.text());
     }
-  } catch(e) {
-    console.warn('salvarCfgMeta:', e.message);
-    toast('⚠️ Erro de conexão: ' + e.message, 'error');
-  }
+  } catch(e) { toast('⚠️ Erro: ' + e.message, 'error'); }
 }
+
+async function salvarCfgProlabore() {
+  const prolabore = parseFloat(document.getElementById('cfg-prolabore')?.value?.replace(',','.')) || 0;
+  const horasMes  = parseFloat(document.getElementById('cfg-horas-mes')?.value) || 160;
+  db.config.prolabore = prolabore;
+  db.config.horasMes  = horasMes;
+  saveDB();
+
+  const uid = await getUID();
+  if (!uid) { toast('⚠️ Usuário não identificado', 'error'); return; }
+  let token = SUPABASE_KEY;
+  if (sbClient) {
+    const { data: sess } = await sbClient.auth.getSession();
+    if (sess?.session?.access_token) token = sess.session.access_token;
+  }
+  try {
+    const res = await fetch(
+      `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/perfis?user_id=eq.${uid}`,
+      { method: 'PATCH',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ prolabore, horas_mes: horasMes })
+      }
+    );
+    if (res.ok) toast('✅ Pró-labore e horas salvos!', 'success');
+    else toast('⚠️ Erro ao salvar: ' + res.status, 'error');
+    renderMetas();
+  } catch(e) { toast('⚠️ Erro: ' + e.message, 'error'); }
+}
+
+function formatMesNome(mesKey) {
+  if (!mesKey) return '';
+  const [ano, mes] = mesKey.split('-');
+  return new Date(Number(ano), Number(mes)-1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+}
+
 
 function copiarCustosUltimoMes() {
   const mesSel = document.getElementById('cf-filtro-mes')?.value;
@@ -5449,24 +5491,83 @@ function copiarCustosUltimoMes() {
   toast(`✅ ${copiados} custo(s) copiado(s) de ${mesAnterior}. Edite os valores se necessário.`, 'success');
 }
 
+// ── Carrega perfil do banco antes de renderizar metas ──────────────
+async function carregarMetas() {
+  try {
+    const uid = await getUID();
+    if (uid) {
+      let token = SUPABASE_KEY;
+      if (sbClient) {
+        const { data: sess } = await sbClient.auth.getSession();
+        if (sess?.session?.access_token) token = sess.session.access_token;
+      }
+      const res = await fetch(
+        `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/perfis?user_id=eq.${uid}&select=prolabore,horas_mes,meta_faturamento,metas_mensais&limit=1`,
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        const arr = await res.json();
+        const p   = arr?.[0];
+        if (p) {
+          if (p.prolabore        != null) db.config.prolabore        = Number(p.prolabore);
+          if (p.horas_mes        != null) db.config.horasMes         = Number(p.horas_mes);
+          if (p.meta_faturamento != null) db.config.metaFaturamento  = Number(p.meta_faturamento);
+          // metas mensais (objeto {YYYY-MM: valor})
+          if (p.metas_mensais) {
+            try { db.config.metasMensais = typeof p.metas_mensais === 'string' ? JSON.parse(p.metas_mensais) : p.metas_mensais; }
+            catch(_) {}
+          }
+          saveDB();
+        }
+      }
+    }
+  } catch(e) { console.warn('carregarMetas:', e.message); }
+  renderMetas();
+}
+
 function renderMetas() {
-  // Restaura campos a partir do db.config — sempre atualiza
-  const elMetaFat = document.getElementById('cfg-meta-faturamento');
-  const elPro     = document.getElementById('cfg-prolabore');
-  const elHrs     = document.getElementById('cfg-horas-mes');
-  if (elMetaFat && document.activeElement !== elMetaFat)
-    elMetaFat.value = db.config.metaFaturamento || '';
+  const now = new Date();
+  const mesAtualKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+  // ── Preenche campos de pró-labore/horas (só se não estiver sendo editado) ──
+  const elPro = document.getElementById('cfg-prolabore');
+  const elHrs = document.getElementById('cfg-horas-mes');
+  const elMesInput = document.getElementById('cfg-meta-mes');
   if (elPro && document.activeElement !== elPro)
     elPro.value = db.config.prolabore || '';
   if (elHrs && document.activeElement !== elHrs)
     elHrs.value = db.config.horasMes || 160;
+  // Pré-seleciona mês atual no seletor de meta mensal
+  if (elMesInput && !elMesInput.value)
+    elMesInput.value = mesAtualKey;
 
-  // Lê sempre o valor atual dos campos
-  const metaFaturamento = parseFloat(elMetaFat?.value) || parseFloat(db.config.metaFaturamento) || 0;
-  const prolabore       = parseFloat(elPro?.value)     || parseFloat(db.config.prolabore)       || 0;
+  const prolabore = parseFloat(elPro?.value) || parseFloat(db.config.prolabore) || 0;
+  const horasMes  = parseFloat(elHrs?.value) || parseFloat(db.config.horasMes)  || 160;
 
-  // Popula filtro de ano
-  const now = new Date();
+  // ── Renderiza lista de metas mensais salvas ──
+  const metasMensais = db.config.metasMensais || {};
+  const listaEl = document.getElementById('metas-mensais-lista');
+  if (listaEl) {
+    const keys = Object.keys(metasMensais).sort().reverse().slice(0, 12);
+    listaEl.innerHTML = keys.length ? keys.map(k => `
+      <div style="display:flex;align-items:center;gap:8px;background:var(--white);border:1px solid var(--cream-mid);border-radius:8px;padding:6px 12px;font-size:.78rem">
+        <span style="color:var(--text-mid);font-weight:600">${formatMesNome(k)}</span>
+        <span style="color:var(--caramel-dk);font-weight:700">${formatMoney(metasMensais[k])}</span>
+        <button onclick="editarMetaMensal('${k}')" style="background:none;border:none;cursor:pointer;font-size:.75rem;color:var(--text-lt);padding:0 4px" title="Editar">✏️</button>
+        <button onclick="excluirMetaMensal('${k}')" style="background:none;border:none;cursor:pointer;font-size:.75rem;color:var(--text-lt);padding:0 4px" title="Excluir">✕</button>
+      </div>`).join('') : '<span style="font-size:.75rem;color:var(--text-lt)">Nenhuma meta mensal definida ainda</span>';
+  }
+
+  // ── Valor/hora ──
+  const valorHora = horasMes > 0 ? prolabore / horasMes : 0;
+  const elHoraInfo = document.getElementById('meta-hora-calc-info');
+  if (elHoraInfo) {
+    elHoraInfo.innerHTML = prolabore > 0
+      ? `💡 <strong style="color:var(--caramel-dk)">${formatMoney(prolabore)}</strong> ÷ <strong style="color:var(--caramel-dk)">${horasMes}h/mês</strong> = <strong style="color:var(--choco);font-size:.9rem">R$ ${valorHora.toFixed(2).replace('.',',')}/hora</strong>`
+      : 'Configure pró-labore e horas/mês acima para ver o valor/hora calculado.';
+  }
+
+  // ── Popula filtro de ano ──
   const selFiltro = document.getElementById('meta-mes-filtro');
   if (selFiltro) {
     const anos = [...new Set(db.vendas.map(v => new Date(v.data).getFullYear()))];
@@ -5481,43 +5582,35 @@ function renderMetas() {
       selFiltro.value = now.getFullYear();
     }
   }
-  const anoFiltro    = parseInt(selFiltro?.value || now.getFullYear());
-  const mesAtualIdx  = now.getMonth();
+  const anoFiltro   = parseInt(selFiltro?.value || now.getFullYear());
+  const mesAtualIdx = now.getMonth();
   const mesFiltroKey = `${anoFiltro}-${String(mesAtualIdx+1).padStart(2,'0')}`;
 
-  // Custos fixos do mês
+  // ── Custos fixos do mês atual ──
   const custosFixos = db.custos_fixos_itens
     .filter(c => c.mes === mesFiltroKey)
     .reduce((s,c) => s+c.valor, 0);
 
-  // Atualiza o display dos custos fixos
-  const elCFDisplay = document.getElementById('cfg-custos-fixos-display');
-  if (elCFDisplay) {
-    elCFDisplay.textContent = custosFixos > 0
-      ? `${formatMoney(custosFixos)} (${db.custos_fixos_itens.filter(c=>c.mes===mesFiltroKey).length} item(s))`
-      : 'Nenhum custo fixo neste mês';
-    elCFDisplay.style.color = custosFixos > 0 ? 'var(--choco)' : 'var(--text-lt)';
-  }
-
-  // Meta: se informada manualmente prevalece; senão usa pró-labore + custos fixos
+  // ── Meta: usa a meta do mês atual se existir, senão prolabore+custos ──
+  const metaMes      = metasMensais[mesFiltroKey] || metasMensais[mesAtualKey] || 0;
   const compostoAuto = prolabore + custosFixos;
-  const metaTotal    = metaFaturamento > 0 ? metaFaturamento : compostoAuto;
+  const metaTotal    = metaMes > 0 ? metaMes : compostoAuto;
 
   const vendasMesAtual = db.vendas.filter(v => {
     const d = new Date(v.data);
     return d.getFullYear() === anoFiltro && d.getMonth() === mesAtualIdx;
   });
-  const fatAtual     = vendasMesAtual.reduce((s,v) => s+v.total, 0);
+  const fatAtual     = vendasMesAtual.reduce((s,v) => s+Number(v.total||0), 0);
   const faltaFaturar = Math.max(0, metaTotal - fatAtual);
   const pctMeta      = metaTotal > 0 ? Math.min(100, (fatAtual/metaTotal)*100) : 0;
 
   const set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
   set('meta-fat-necessario', formatMoney(metaTotal));
-  set('meta-fat-composto',   metaFaturamento > 0
-    ? `Pró-labore ${formatMoney(prolabore)} + Custos ${formatMoney(custosFixos)} = ${formatMoney(compostoAuto)}`
-    : `${formatMoney(prolabore)} + ${formatMoney(custosFixos)}`);
-  set('meta-fat-atual',      formatMoney(fatAtual));
-  set('meta-fat-falta',      formatMoney(faltaFaturar));
+  set('meta-fat-composto',   metaMes > 0
+    ? `Meta manual ${formatMoney(metaMes)}`
+    : `Pró-labore ${formatMoney(prolabore)} + Custos ${formatMoney(custosFixos)}`);
+  set('meta-fat-atual',  formatMoney(fatAtual));
+  set('meta-fat-falta',  formatMoney(faltaFaturar));
 
   // Barra de progresso
   const elNec = document.getElementById('meta-necessidade');
@@ -5540,69 +5633,49 @@ function renderMetas() {
     const fillEl = document.getElementById('meta-prog-fill');
     if (fillEl) fillEl.style.width = pctMeta + '%';
     set('meta-prog-label',   `${pctMeta.toFixed(0)}% da meta atingida`);
-    set('meta-prog-detalhe', metaFaturamento > 0
-      ? `Meta manual · ${formatMoney(fatAtual)} de ${formatMoney(metaTotal)}`
-      : `Pró-labore ${formatMoney(prolabore)} + Custos ${formatMoney(custosFixos)}`);
+    set('meta-prog-detalhe', `${formatMoney(fatAtual)} de ${formatMoney(metaTotal)}`);
   }
 
-  // Atualiza info de valor/hora
-  const horasMes  = parseFloat(elHrs?.value) || 160;
-  const valorHora = horasMes > 0 ? prolabore / horasMes : 0;
-  const elHoraInfo = document.getElementById('meta-hora-calc-info');
-  if (elHoraInfo) {
-    if (prolabore > 0) {
-      elHoraInfo.innerHTML = `💡 <strong style="color:var(--caramel-dk)">${formatMoney(prolabore)}</strong> ÷ <strong style="color:var(--caramel-dk)">${horasMes}h/mês</strong> = <strong style="color:var(--choco);font-size:.9rem">R$ ${valorHora.toFixed(2).replace('.',',')}/hora</strong> — use o botão <em>do pró-labore</em> na Calculadora para preencher automaticamente.`;
-    } else {
-      elHoraInfo.textContent = 'Configure pró-labore e horas/mês acima para ver o valor/hora calculado.';
-    }
-  }
-
-  // Quantas unidades de cada receita precisa vender
+  // ── Quantas unidades de cada receita precisa vender ──
   const boxReceitas = document.getElementById('meta-receitas-box');
-  if (boxReceitas && db.receitas.length && metaTotal > 0) {
+  if (boxReceitas && db.receitas.length && faltaFaturar > 0) {
     boxReceitas.innerHTML = `
       <div class="meta-config-box">
         <div class="meta-config-title">🧁 Quantas unidades preciso vender para bater a meta?</div>
-        <div style="font-size:0.8rem;color:var(--text-lt);margin-bottom:12px">Baseado na meta de ${formatMoney(metaTotal)} e no preço de venda de cada receita</div>
         ${db.receitas.map(r => {
           const custoR = (r.insumos_lista||[]).reduce((s,i) => s+i.custo_total, 0) || r.custo || 0;
-          const precoSugerido = custoR > 0 ? custoR * 1.5 : 0; // fallback 50% margem
-          const precoPorPorcao = precoSugerido / (r.rendimento||1);
-          const qtdNecessaria = precoPorPorcao > 0 ? Math.ceil(faltaFaturar / precoPorPorcao) : '—';
+          const precoSugerido = custoR > 0 ? custoR * 1.5 : 0;
+          const precoPorcao = precoSugerido / (r.rendimento||1);
+          const qtdNec = precoPorcao > 0 ? Math.ceil(faltaFaturar / precoPorcao) : '—';
           return `<div class="rmi-item">
-            <div>
-              <div class="rmi-nome">${r.nome}</div>
-              <div class="rmi-custo">Custo ${formatMoney(custoR)} · ${r.rendimento||1} porções · ~${formatMoney(precoPorPorcao)}/porção</div>
-            </div>
-            <div class="rmi-info">
-              <div class="rmi-precisa">${qtdNecessaria === '—' ? '—' : qtdNecessaria + ' porções'}</div>
-              <div class="rmi-custo">para bater a meta</div>
-            </div>
+            <div><div class="rmi-nome">${r.nome}</div><div class="rmi-custo">~${formatMoney(precoPorcao)}/porção</div></div>
+            <div class="rmi-info"><div class="rmi-precisa">${qtdNec === '—' ? '—' : qtdNec + ' porções'}</div><div class="rmi-custo">para bater a meta</div></div>
           </div>`;
         }).join('')}
       </div>`;
-  } else if (boxReceitas) {
-    boxReceitas.innerHTML = '';
-  }
+  } else if (boxReceitas) { boxReceitas.innerHTML = ''; }
 
-  // Lista de meses
+  // ── Lista de meses ──
   const lista = document.getElementById('meses-lista');
   if (!lista) return;
 
-  const mesesHtml = MESES_NOMES.map((nomeMes, idx) => {
+  lista.innerHTML = MESES_NOMES.map((nomeMes, idx) => {
+    const mesKey = `${anoFiltro}-${String(idx+1).padStart(2,'0')}`;
     const vendasMes = db.vendas.filter(v => {
       const d = new Date(v.data);
       return d.getFullYear() === anoFiltro && d.getMonth() === idx;
     });
-    const total = vendasMes.reduce((s,v) => s+v.total, 0);
-    const pct   = metaTotal > 0 ? Math.min(100, (total/metaTotal)*100) : 0;
+    const total = vendasMes.reduce((s,v) => s+Number(v.total||0), 0);
+    const metaM = metasMensais[mesKey] || 0;
+    const pct   = metaM > 0 ? Math.min(100, (total/metaM)*100) : 0;
     const isAtual = idx === now.getMonth() && anoFiltro === now.getFullYear();
     const isAtivo = mesSelecionado === idx;
 
     let statusClass = 'nenhum', statusLabel = 'Sem dados';
-    if (isAtual) { statusClass = 'atual'; statusLabel = 'Mês atual'; }
-    if (total > 0 && pct < 100) { statusClass = 'parcial'; statusLabel = `${pct.toFixed(0)}%`; }
-    if (pct >= 100) { statusClass = 'atingido'; statusLabel = '✓ Meta batida'; }
+    if (isAtual)         { statusClass = 'atual';    statusLabel = 'Mês atual'; }
+    if (total > 0 && pct < 100 && metaM > 0) { statusClass = 'parcial';  statusLabel = `${pct.toFixed(0)}%`; }
+    if (pct >= 100)      { statusClass = 'atingido'; statusLabel = '✓ Meta batida'; }
+    if (!metaM && total > 0) { statusClass = 'parcial'; statusLabel = 'Sem meta definida'; }
 
     return `<div class="mes-card ${isAtivo?'ativo':''}" onclick="selecionarMes(${idx}, ${anoFiltro})">
       <div class="mes-card-top">
@@ -5611,7 +5684,7 @@ function renderMetas() {
       </div>
       <div class="mes-valores">
         <div><strong>${formatMoney(total)}</strong>faturado</div>
-        ${metaTotal > 0 ? `<div><strong>${formatMoney(metaTotal)}</strong>meta</div>` : ''}
+        ${metaM > 0 ? `<div><strong>${formatMoney(metaM)}</strong>meta</div>` : '<div style="color:var(--text-lt);font-size:.72rem">sem meta</div>'}
         <div><strong>${vendasMes.length}</strong>vendas</div>
       </div>
       <div class="progress-bar-bg">
@@ -5620,11 +5693,33 @@ function renderMetas() {
     </div>`;
   }).join('');
 
-  lista.innerHTML = mesesHtml;
-
-  // Se já tinha mês selecionado, re-renderiza o painel
   if (mesSelecionado !== null) selecionarMes(mesSelecionado, anoFiltro, true);
 }
+
+function editarMetaMensal(mesKey) {
+  const el = document.getElementById('cfg-meta-mes');
+  const vl = document.getElementById('cfg-meta-faturamento');
+  if (el) el.value = mesKey;
+  if (vl) vl.value = db.config.metasMensais?.[mesKey] || '';
+  el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+async function excluirMetaMensal(mesKey) {
+  if (!confirm(`Excluir a meta de ${formatMesNome(mesKey)}?`)) return;
+  if (db.config.metasMensais) delete db.config.metasMensais[mesKey];
+  saveDB();
+  const uid = await getUID();
+  if (uid) {
+    let token = SUPABASE_KEY;
+    if (sbClient) { const { data: sess } = await sbClient.auth.getSession(); if (sess?.session?.access_token) token = sess.session.access_token; }
+    await fetch(`https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/perfis?user_id=eq.${uid}`,
+      { method: 'PATCH', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ metas_mensais: JSON.stringify(db.config.metasMensais || {}) }) });
+  }
+  toast(`Meta de ${formatMesNome(mesKey)} removida`, 'success');
+  renderMetas();
+}
+
 
 function selecionarMes(mesIdx, ano, silent = false) {
   mesSelecionado = mesIdx;
