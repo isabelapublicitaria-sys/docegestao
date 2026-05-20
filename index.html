@@ -2558,6 +2558,30 @@
         <label>Data de aniversário</label>
         <input type="date" id="cliente-aniversario" />
       </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Endereço</label>
+          <input type="text" id="cliente-endereco" placeholder="Rua, Avenida..." />
+        </div>
+        <div class="form-group">
+          <label>Número</label>
+          <input type="text" id="cliente-numero" placeholder="901" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Bairro</label>
+          <input type="text" id="cliente-bairro" placeholder="Jardim Flor da Montanha" />
+        </div>
+        <div class="form-group">
+          <label>CEP</label>
+          <input type="text" id="cliente-zip" placeholder="07097-420" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Referência</label>
+        <input type="text" id="cliente-referencia" placeholder="Apto 901, Torre Íris..." />
+      </div>
       <div class="form-group">
         <label>Observações</label>
         <textarea id="cliente-obs" placeholder="Preferências, restrições alimentares..."></textarea>
@@ -4487,10 +4511,15 @@ function editarCliente(id) {
   if (!c) return;
   document.getElementById('cliente-id').value = c.id;
   document.getElementById('cliente-nome').value = c.nome;
-  document.getElementById('cliente-tel').value = c.tel || '';
-  document.getElementById('cliente-email').value = c.email || '';
+  document.getElementById('cliente-tel').value        = c.tel || '';
+  document.getElementById('cliente-email').value      = c.email || '';
   document.getElementById('cliente-aniversario').value = c.aniversario || '';
-  document.getElementById('cliente-obs').value = c.obs || '';
+  document.getElementById('cliente-obs').value        = c.obs || '';
+  document.getElementById('cliente-endereco').value   = c.endereco || '';
+  document.getElementById('cliente-numero').value     = c.numero || '';
+  document.getElementById('cliente-bairro').value     = c.bairro || '';
+  document.getElementById('cliente-zip').value        = c.zip_code || '';
+  document.getElementById('cliente-referencia').value = c.referencia || '';
   document.getElementById('modal-cliente-title').textContent = 'Editar Cliente';
   openModal('modal-cliente');
 }
@@ -4517,6 +4546,11 @@ async function salvarCliente() {
     email:       document.getElementById('cliente-email').value,
     aniversario: document.getElementById('cliente-aniversario').value,
     obs:         document.getElementById('cliente-obs').value,
+    endereco:    document.getElementById('cliente-endereco').value,
+    numero:      document.getElementById('cliente-numero').value,
+    bairro:      document.getElementById('cliente-bairro').value,
+    zip_code:    document.getElementById('cliente-zip').value,
+    referencia:  document.getElementById('cliente-referencia').value,
   };
 
   if (id) { db.clientes = db.clientes.map(c => c.id === id ? cl : c); }
@@ -4527,7 +4561,17 @@ async function salvarCliente() {
   closeModal('modal-cliente');
   toast(id ? 'Cliente atualizado!' : 'Cliente cadastrado!', 'success');
   renderClientes();
-  document.getElementById('cliente-id').value = '';
+  document.getElementById('cliente-id').value          = '';
+  document.getElementById('cliente-nome').value        = '';
+  document.getElementById('cliente-tel').value         = '';
+  document.getElementById('cliente-email').value       = '';
+  document.getElementById('cliente-aniversario').value = '';
+  document.getElementById('cliente-obs').value         = '';
+  document.getElementById('cliente-endereco').value    = '';
+  document.getElementById('cliente-numero').value      = '';
+  document.getElementById('cliente-bairro').value      = '';
+  document.getElementById('cliente-zip').value         = '';
+  document.getElementById('cliente-referencia').value  = '';
   document.getElementById('modal-cliente-title').textContent = 'Novo Cliente';
 }
 
@@ -6777,16 +6821,57 @@ function drawCrop() {
   [canvas.height/3, canvas.height*2/3].forEach(ly => { ctx.beginPath(); ctx.moveTo(0,ly); ctx.lineTo(canvas.width,ly); ctx.stroke(); });
 }
 
-function confirmarCrop() {
+async function confirmarCrop() {
   const canvas = document.getElementById('crop-canvas');
-  const url = canvas.toDataURL('image/jpeg', 0.88);
   document.getElementById('modal-crop').style.display = 'none';
+  toast('⏳ Enviando imagem...', 'info');
 
+  // Converter canvas para blob
+  const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.88));
+  const uid  = await getUID();
+  const fileName = `${uid}/${_cropTarget}_${Date.now()}.jpg`;
+
+  // Upload para Supabase Storage
+  try {
+    const uploadRes = await fetch(
+      `https://uiujarlepzavgxglkhdw.supabase.co/storage/v1/object/imagens/${fileName}`,
+      {
+        method: 'POST',
+        headers: {
+          'apikey':        SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type':  'image/jpeg',
+          'x-upsert':      'true',
+        },
+        body: blob,
+      }
+    );
+
+    if (!uploadRes.ok) {
+      // Fallback: usar base64 se storage falhar
+      const url = canvas.toDataURL('image/jpeg', 0.88);
+      aplicarImagem(url);
+      toast('✅ Imagem salva localmente!', 'success');
+      return;
+    }
+
+    const publicUrl = `https://uiujarlepzavgxglkhdw.supabase.co/storage/v1/object/public/imagens/${fileName}`;
+    aplicarImagem(publicUrl);
+    toast('✅ Imagem enviada com sucesso!', 'success');
+
+  } catch(e) {
+    // Fallback base64
+    const url = canvas.toDataURL('image/jpeg', 0.88);
+    aplicarImagem(url);
+    toast('✅ Imagem salva!', 'success');
+  }
+}
+
+function aplicarImagem(url) {
   if (_cropTarget === 'logo') {
     document.getElementById('cfg-logo-url').value = url;
     const prev = document.getElementById('logo-preview');
     if (prev) prev.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:contain;padding:4px" />`;
-    toast('✅ Logo ajustada!', 'success');
   } else {
     document.getElementById('cfg-hero-img-url').value = url;
     document.getElementById('cfg-hero-tipo').value = 'foto';
@@ -6795,7 +6880,6 @@ function confirmarCrop() {
     db.config.hero_img_url = url;
     db.config.hero_tipo    = 'foto';
     saveDB();
-    toast('✅ Imagem ajustada!', 'success');
   }
 }
 
