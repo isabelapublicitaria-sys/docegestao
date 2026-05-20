@@ -3315,26 +3315,28 @@ async function savePerfil() {
     const uid = await getUID();
     if (!uid) return;
     await sbClient.from('perfis').upsert({
-      user_id:      uid,
-      nome:         db.config.nome,
-      empresa:      db.config.empresa,
-      tel:          db.config.tel,
-      instagram:    db.config.instagram || null,
-      cidade:       db.config.cidade,
-      estado:       db.config.estado,
-      endereco:     db.config.endereco   || null,
-      logo_url:     db.config.logo_url   || null,
-      prolabore:    db.config.prolabore  || 0,
-      custos_fixos: db.config.custosFixos|| 0,
-      pix_chave:    db.config.pix_chave  || null,
-      pix_nome:     db.config.pix_nome   || null,
-      pag_dinheiro: db.config.pag_dinheiro !== false,
-      pag_pix:      db.config.pag_pix    !== false,
-      pag_cred:     db.config.pag_cred   === true,
-      pag_deb:      db.config.pag_deb    === true,
-      pag_entrega:  db.config.pag_entrega!== false,
-      loja_aberta:  db.config.loja_aberta === true,
-      horarios:     db.config.horarios ? JSON.stringify(db.config.horarios) : null,
+      user_id:          uid,
+      nome:             db.config.nome,
+      empresa:          db.config.empresa,
+      tel:              db.config.tel,
+      instagram:        db.config.instagram    || null,
+      cidade:           db.config.cidade,
+      estado:           db.config.estado,
+      endereco:         db.config.endereco     || null,
+      logo_url:         db.config.logo_url     || null,
+      prolabore:        db.config.prolabore    || 0,
+      horas_mes:        db.config.horasMes     || 160,
+      meta_faturamento: db.config.metaFaturamento || 0,
+      custos_fixos:     db.config.custosFixos  || 0,
+      pix_chave:        db.config.pix_chave    || null,
+      pix_nome:         db.config.pix_nome     || null,
+      pag_dinheiro:     db.config.pag_dinheiro !== false,
+      pag_pix:          db.config.pag_pix      !== false,
+      pag_cred:         db.config.pag_cred     === true,
+      pag_deb:          db.config.pag_deb      === true,
+      pag_entrega:      db.config.pag_entrega  !== false,
+      loja_aberta:      db.config.loja_aberta  === true,
+      horarios:         db.config.horarios ? JSON.stringify(db.config.horarios) : null,
     }, { onConflict: 'user_id' });
   } catch(e) {
     console.warn('Supabase perfil error:', e.message);
@@ -5365,19 +5367,21 @@ const MESES_NOMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julh
 let mesSelecionado = null;
 
 async function salvarCfgMeta() {
-  const metaFat  = parseFloat(document.getElementById('cfg-meta-faturamento')?.value) || 0;
-  const prolabore= parseFloat(document.getElementById('cfg-prolabore')?.value) || 0;
-  const horasMes = parseFloat(document.getElementById('cfg-horas-mes')?.value)  || 160;
+  // Lê os valores dos campos com fallback seguro
+  const metaFat  = parseFloat(document.getElementById('cfg-meta-faturamento')?.value.replace(',','.')) || 0;
+  const prolabore= parseFloat(document.getElementById('cfg-prolabore')?.value.replace(',','.')) || 0;
+  const horasMes = parseFloat(document.getElementById('cfg-horas-mes')?.value) || 160;
+
+  // Persiste no db local
   db.config.metaFaturamento = metaFat;
   db.config.prolabore       = prolabore;
   db.config.horasMes        = horasMes;
   saveDB();
-  renderMetas();
 
   // Salva no Supabase com JWT da sessão
   try {
     const uid = await getUID();
-    if (!uid) return;
+    if (!uid) { toast('⚠️ Usuário não identificado', 'error'); return; }
     let token = SUPABASE_KEY;
     if (sbClient) {
       const { data: sess } = await sbClient.auth.getSession();
@@ -5393,12 +5397,25 @@ async function salvarCfgMeta() {
           'Content-Type': 'application/json',
           'Prefer':       'return=minimal',
         },
-        body: JSON.stringify({ meta_faturamento: metaFat, prolabore, horas_mes: horasMes }),
+        body: JSON.stringify({
+          meta_faturamento: metaFat,
+          prolabore:        prolabore,
+          horas_mes:        horasMes,
+        }),
       }
     );
-    if (!res.ok) console.warn('salvarCfgMeta error:', await res.text());
-    else toast('✅ Configurações salvas!', 'success');
-  } catch(e) { console.warn('salvarCfgMeta:', e.message); }
+    if (!res.ok) {
+      const err = await res.text();
+      console.warn('salvarCfgMeta error:', err);
+      toast('⚠️ Erro ao salvar no banco: ' + res.status, 'error');
+    } else {
+      toast('✅ Meta e pró-labore salvos!', 'success');
+      renderMetas(); // atualiza a tela só após confirmação do banco
+    }
+  } catch(e) {
+    console.warn('salvarCfgMeta:', e.message);
+    toast('⚠️ Erro de conexão: ' + e.message, 'error');
+  }
 }
 
 function copiarCustosUltimoMes() {
