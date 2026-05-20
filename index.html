@@ -3205,18 +3205,23 @@ async function loadUserProfile(user) {
     db.metas   = metas.data    || [];
     db.insumos = insumos.data  || [];
 
-    // Busca plano do usuário
+    // Busca plano do usuário — usa JWT da sessão para o RLS funcionar
     try {
+      const { data: planSess } = await sbClient.auth.getSession();
+      const planToken = planSess?.session?.access_token || SUPABASE_KEY;
       const planRes = await fetch(
         `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/admin_planos?user_id=eq.${uid}&select=plano,vencimento&limit=1`,
-        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${planToken}` } }
       );
       if (planRes.ok) {
         const planData = await planRes.json();
         if (planData && planData.length > 0) {
           db.config.plano      = planData[0].plano || 'gratis';
           db.config.vencimento = planData[0].vencimento || null;
-          console.log('📋 Plano:', db.config.plano);
+          console.log('📋 Plano carregado:', db.config.plano);
+        } else {
+          db.config.plano = 'gratis';
+          console.log('📋 Sem plano encontrado — usando gratis');
         }
       }
     } catch(e) { console.warn('Plano fetch:', e.message); }
