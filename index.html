@@ -1091,6 +1091,43 @@
     font-family: 'Comfortaa', sans-serif; font-size: 0.85rem; color: var(--text);
     background: var(--white); outline: none;
   }
+/* ── Campos editáveis pelo confeiteiro ── */
+.campo-manual input,
+.campo-manual select,
+.campo-manual textarea {
+  background: #fffbeb !important;
+  border-color: #f59e0b !important;
+}
+.campo-manual input:focus,
+.campo-manual select:focus,
+.campo-manual textarea:focus {
+  border-color: #d97706 !important;
+  box-shadow: 0 0 0 3px rgba(245,158,11,.15) !important;
+}
+.campo-manual::after {
+  content: '✏️ editável';
+  display: block;
+  font-size: .65rem;
+  color: #92400e;
+  margin-top: 2px;
+  font-weight: 600;
+}
+
+/* ── Campos calculados automaticamente ── */
+.campo-auto input,
+.campo-auto select {
+  background: #eff6ff !important;
+  border-color: #93c5fd !important;
+  color: #1e40af !important;
+}
+.campo-auto::after {
+  content: '⚙️ automático';
+  display: block;
+  font-size: .65rem;
+  color: #1e40af;
+  margin-top: 2px;
+  font-weight: 600;
+}
 </style>
 </head>
 <body>
@@ -1687,7 +1724,7 @@
                 <div><div class="prec-card-title">Mão de obra</div><div class="prec-card-sub">Calculado automaticamente pelo pró-labore</div></div>
               </div>
               <div class="prec-card-body">
-                <div class="prec-field" style="margin:0">
+                <div class="prec-field campo-manual" style="margin:0">
                   <label>Tempo de preparo (min)</label>
                   <input type="number" id="prec-tempo" placeholder="60" min="0" oninput="calcPreco()" />
                 </div>
@@ -1705,15 +1742,15 @@
               </div>
               <div class="prec-card-body">
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-                  <div class="prec-field" style="margin:0">
+                  <div class="prec-field campo-manual" style="margin:0">
                     <label>Margem de lucro (%)</label>
                     <input type="number" id="prec-lucro" placeholder="40" min="0" oninput="calcPreco()" />
                   </div>
-                  <div class="prec-field" style="margin:0">
+                  <div class="prec-field campo-auto" style="margin:0">
                     <label>Unidades finais <span style="font-size:.65rem;color:var(--text-lt)">(preenchido automaticamente)</span></label>
                     <input type="number" id="prec-rendimento" placeholder="1" min="1" value="1" oninput="calcPreco()" />
                   </div>
-                  <div class="prec-field" style="margin:0">
+                  <div class="prec-field campo-auto" style="margin:0">
                     <label>Custo fixo rateado (R$)</label>
                     <input type="number" id="prec-fixos" placeholder="automático" min="0" step="0.01" oninput="calcPreco()" />
                   </div>
@@ -2398,11 +2435,11 @@
         <input type="file" id="produto-foto-input" accept="image/*" style="display:none" onchange="previewFoto(this)" />
         <input type="hidden" id="produto-foto-url" />
         <div style="flex:1">
-          <div class="form-group" style="margin-bottom:10px">
+          <div class="form-group campo-manual" style="margin-bottom:10px">
             <label>Nome do produto *</label>
             <input type="text" id="produto-nome" placeholder="Ex: Brigadeiro Gourmet" />
           </div>
-          <div class="form-group" style="margin-bottom:0">
+          <div class="form-group campo-manual" style="margin-bottom:0">
             <label>Categoria</label>
             <select id="produto-cat">
               <option>Bombons</option><option>Bolos</option><option>Tortas</option>
@@ -2415,18 +2452,18 @@
 
       <!-- Preço, custo e qty -->
       <div class="form-row triple">
-        <div class="form-group">
+        <div class="form-group campo-manual">
           <label>Preço de venda (R$)</label>
           <input type="number" id="produto-preco" placeholder="0,00" step="0.01" min="0" />
         </div>
-        <div class="form-group">
+        <div class="form-group campo-auto">
           <label style="display:flex;align-items:center;gap:5px">
             Custo (R$)
             <span style="font-size:.62rem;background:var(--caramel);color:white;padding:1px 6px;border-radius:6px;cursor:pointer;white-space:nowrap" onclick="buscarCustoDaPrecificacao()" title="Puxar custo da precificação">da precif.</span>
           </label>
           <input type="number" id="produto-custo" placeholder="0,00" step="0.01" min="0" />
         </div>
-        <div class="form-group">
+        <div class="form-group campo-manual">
           <label>Qtd em estoque</label>
           <input type="number" id="produto-qty" placeholder="0" min="0" />
         </div>
@@ -2436,11 +2473,11 @@
       <div id="produto-custo-info" style="display:none;background:var(--cream-dark);border-radius:8px;padding:8px 12px;font-size:.75rem;color:var(--text-lt);margin-bottom:12px"></div>
 
       <div class="form-row">
-        <div class="form-group">
+        <div class="form-group campo-manual">
           <label>Estoque mínimo</label>
           <input type="number" id="produto-minimo" placeholder="5" min="0" />
         </div>
-        <div class="form-group">
+        <div class="form-group campo-manual">
           <label>Unidade</label>
           <select id="produto-unidade">
             <option value="un">Unidade (un)</option>
@@ -2451,7 +2488,7 @@
           </select>
         </div>
       </div>
-      <div class="form-group" style="margin-top:4px">
+      <div class="form-group campo-auto" style="margin-top:4px">
         <label style="display:flex;align-items:center;gap:6px">
           📖 Ficha Técnica vinculada
           <span style="font-size:.68rem;color:var(--text-lt)">(para abate automático de insumos)</span>
@@ -2460,7 +2497,7 @@
           <option value="">— Nenhuma / selecionar depois —</option>
         </select>
       </div>
-      <div class="form-group">
+      <div class="form-group campo-manual">
         <label>Descrição</label>
         <textarea id="produto-desc" placeholder="Descrição do produto..."></textarea>
       </div>
@@ -2684,14 +2721,14 @@
       <input type="hidden" id="insumo-id" />
 
       <div class="form-row">
-        <div class="form-group">
+        <div class="form-group campo-manual">
           <label>Nome do insumo *</label>
           <input type="text" id="insumo-nome" placeholder="Ex: Farinha de Trigo" />
         </div>
       </div>
 
       <div class="form-row">
-        <div class="form-group">
+        <div class="form-group campo-manual">
           <label>Categoria</label>
           <select id="insumo-categoria">
             <option>Farinhas e Amidos</option>
@@ -2712,7 +2749,7 @@
             <option>Outros</option>
           </select>
         </div>
-        <div class="form-group">
+        <div class="form-group campo-manual">
           <label>Tipo de cardápio</label>
           <select id="insumo-tipo">
             <option value="fixo">📋 Cardápio Fixo</option>
@@ -2724,11 +2761,11 @@
       <div style="background:var(--cream-dark);border-radius:12px;padding:16px;margin-bottom:16px">
         <div style="font-size:0.8rem;font-weight:700;color:var(--text-mid);margin-bottom:12px">📦 Dados da compra</div>
         <div class="form-row triple">
-          <div class="form-group" style="margin-bottom:0">
+          <div class="form-group campo-manual" style="margin-bottom:0">
             <label>Quantidade comprada *</label>
             <input type="number" id="insumo-qtd-compra" placeholder="400" min="0.01" step="0.01" oninput="calcularCustoUnit()" />
           </div>
-          <div class="form-group" style="margin-bottom:0">
+          <div class="form-group campo-manual" style="margin-bottom:0">
             <label>Unidade</label>
             <select id="insumo-unidade" onchange="calcularCustoUnit()">
               <option value="g">g (gramas)</option>
@@ -2740,7 +2777,7 @@
               <option value="dz">dz (dúzias)</option>
             </select>
           </div>
-          <div class="form-group" style="margin-bottom:0">
+          <div class="form-group campo-manual" style="margin-bottom:0">
             <label>Preço total (R$) *</label>
             <input type="number" id="insumo-preco-total" placeholder="5,50" min="0" step="0.01" oninput="calcularCustoUnit()" />
           </div>
@@ -2766,17 +2803,17 @@
       </div>
 
       <div class="form-row" style="margin-top:16px">
-        <div class="form-group">
+        <div class="form-group campo-manual">
           <label>Estoque atual (em estoque)</label>
           <input type="number" id="insumo-estoque" placeholder="0" min="0" step="0.01" />
         </div>
-        <div class="form-group">
+        <div class="form-group campo-manual">
           <label>Estoque mínimo (alerta)</label>
           <input type="number" id="insumo-minimo" placeholder="100" min="0" step="0.01" />
         </div>
       </div>
 
-      <div class="form-group">
+      <div class="form-group campo-manual">
         <label>Fornecedor / Marca</label>
         <input type="text" id="insumo-fornecedor" placeholder="Ex: Anaconda, Nestlé, mercado local..." />
       </div>
@@ -4021,24 +4058,6 @@ function filtrarVendasStatus(status) {
   window._filtroStatus = status;
   filterVendas();
   setTimeout(() => { window._filtroStatus = null; }, 100);
-}
-
-function renderCategorias() {
-  const cats = db.config.categorias || ['Bolos','Bombons','Tortas','Cupcakes','Salgados','Outros'];
-  const el   = document.getElementById('categorias-lista');
-  if (!el) return;
-  el.innerHTML = cats.map((c,i) => `
-    <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--cream);border-radius:8px;margin-bottom:6px">
-      <span style="flex:1;font-size:.85rem;font-weight:600;color:var(--choco)">${c}</span>
-      <button onclick="removerCategoria(${i})" style="background:none;border:none;cursor:pointer;color:var(--text-lt);font-size:.9rem" title="Remover">✕</button>
-    </div>`).join('');
-
-  // Atualiza o select de categoria no modal de produto
-  const sel = document.getElementById('produto-cat');
-  if (sel) {
-    const cur = sel.value;
-    sel.innerHTML = cats.map(c => `<option value="${c}" ${c===cur?'selected':''}>${c}</option>`).join('');
-  }
 }
 
 function adicionarCategoria() {
@@ -5697,12 +5716,7 @@ function previewLogo(input) {
   if (!file) return;
   if (file.size > 2*1024*1024) { toast('Logo deve ter menos de 2MB','error'); return; }
   const reader = new FileReader();
-  reader.onload = e => {
-    const url = e.target.result;
-    document.getElementById('cfg-logo-url').value = url;
-    const prev = document.getElementById('logo-preview');
-    prev.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:contain;padding:4px" />`;
-  };
+  reader.onload = e => abrirCropModal(e.target.result, 'logo');
   reader.readAsDataURL(file);
 }
 
@@ -5733,18 +5747,7 @@ function previewHeroImg(input) {
   if (!file) return;
   if (file.size > 2*1024*1024) { toast('Imagem deve ter menos de 2MB','error'); return; }
   const reader = new FileReader();
-  reader.onload = e => {
-    const url = e.target.result;
-    document.getElementById('cfg-hero-img-url').value = url;
-    document.getElementById('cfg-hero-tipo').value = 'foto';
-    const prev = document.getElementById('hero-img-preview');
-    prev.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:10px" />`;
-    // Salva imediatamente no db.config
-    db.config.hero_img_url = url;
-    db.config.hero_tipo    = 'foto';
-    saveDB();
-    toast('✅ Foto carregada — clique em Salvar dados para confirmar', 'success');
-  };
+  reader.onload = e => abrirCropModal(e.target.result, 'hero');
   reader.readAsDataURL(file);
 }
 
@@ -6726,6 +6729,157 @@ if (!SUPABASE_URL) {
 if (!SUPABASE_URL) {
   console.warn('Supabase URL not configured');
 }
+
+// ══════════════════════════════════════════
+// CROP / AJUSTE DE IMAGEM
+// ══════════════════════════════════════════
+let _cropTarget = ''; // 'logo' ou 'hero'
+let _cropImg    = null;
+let _cropScale  = 1;
+let _cropOffX   = 0;
+let _cropOffY   = 0;
+let _cropDrag   = false;
+let _cropLast   = { x: 0, y: 0 };
+
+function abrirCropModal(src, target) {
+  _cropTarget = target;
+  _cropOffX = 0; _cropOffY = 0; _cropScale = 1;
+  const modal = document.getElementById('modal-crop');
+  const title = document.getElementById('crop-modal-title');
+  if (title) title.textContent = target === 'logo' ? '🖼 Ajustar Logo' : '🖼 Ajustar Imagem de Fundo';
+  modal.style.display = 'flex';
+
+  const img = new Image();
+  img.onload = () => {
+    _cropImg = img;
+    _cropScale = 1;
+    _cropOffX = 0; _cropOffY = 0;
+    drawCrop();
+  };
+  img.src = src;
+}
+
+function drawCrop() {
+  const canvas = document.getElementById('crop-canvas');
+  if (!canvas || !_cropImg) return;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const w = _cropImg.width  * _cropScale;
+  const h = _cropImg.height * _cropScale;
+  const x = (canvas.width  - w) / 2 + _cropOffX;
+  const y = (canvas.height - h) / 2 + _cropOffY;
+  ctx.drawImage(_cropImg, x, y, w, h);
+
+  // Grade de referência
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 1;
+  [canvas.width/3, canvas.width*2/3].forEach(lx => { ctx.beginPath(); ctx.moveTo(lx,0); ctx.lineTo(lx,canvas.height); ctx.stroke(); });
+  [canvas.height/3, canvas.height*2/3].forEach(ly => { ctx.beginPath(); ctx.moveTo(0,ly); ctx.lineTo(canvas.width,ly); ctx.stroke(); });
+}
+
+function confirmarCrop() {
+  const canvas = document.getElementById('crop-canvas');
+  const url = canvas.toDataURL('image/jpeg', 0.88);
+  document.getElementById('modal-crop').style.display = 'none';
+
+  if (_cropTarget === 'logo') {
+    document.getElementById('cfg-logo-url').value = url;
+    const prev = document.getElementById('logo-preview');
+    if (prev) prev.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:contain;padding:4px" />`;
+    toast('✅ Logo ajustada!', 'success');
+  } else {
+    document.getElementById('cfg-hero-img-url').value = url;
+    document.getElementById('cfg-hero-tipo').value = 'foto';
+    const prev = document.getElementById('hero-img-preview');
+    if (prev) prev.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:10px" />`;
+    db.config.hero_img_url = url;
+    db.config.hero_tipo    = 'foto';
+    saveDB();
+    toast('✅ Imagem ajustada!', 'success');
+  }
+}
+
+// Eventos do canvas
+document.addEventListener('DOMContentLoaded', () => {
+  const canvas = document.getElementById('crop-canvas');
+  if (!canvas) return;
+
+  canvas.addEventListener('mousedown',  e => { _cropDrag=true; _cropLast={x:e.clientX,y:e.clientY}; });
+  canvas.addEventListener('mousemove',  e => { if (!_cropDrag) return; _cropOffX+=e.clientX-_cropLast.x; _cropOffY+=e.clientY-_cropLast.y; _cropLast={x:e.clientX,y:e.clientY}; drawCrop(); });
+  canvas.addEventListener('mouseup',    () => { _cropDrag=false; });
+  canvas.addEventListener('mouseleave', () => { _cropDrag=false; });
+  canvas.addEventListener('wheel', e => { e.preventDefault(); _cropScale = Math.max(0.1, Math.min(5, _cropScale - e.deltaY * 0.001)); drawCrop(); }, { passive: false });
+
+  // Touch
+  let lastTouch = null;
+  canvas.addEventListener('touchstart', e => { if (e.touches.length===1) { _cropDrag=true; _cropLast={x:e.touches[0].clientX,y:e.touches[0].clientY}; } });
+  canvas.addEventListener('touchmove',  e => { e.preventDefault(); if (e.touches.length===1 && _cropDrag) { _cropOffX+=e.touches[0].clientX-_cropLast.x; _cropOffY+=e.touches[0].clientY-_cropLast.y; _cropLast={x:e.touches[0].clientX,y:e.touches[0].clientY}; drawCrop(); } }, { passive: false });
+  canvas.addEventListener('touchend',   () => { _cropDrag=false; });
+});
+
+// ══════════════════════════════════════════
+// CATEGORIAS INATIVAS
+// ══════════════════════════════════════════
+function renderCategorias() {
+  const cats   = db.config.categorias        || ['Bolos','Bombons','Tortas','Cupcakes','Salgados','Outros'];
+  const inativas = db.config.cats_inativas   || [];
+  const el     = document.getElementById('categorias-lista');
+  if (!el) return;
+
+  el.innerHTML = cats.map((c,i) => {
+    const inativa = inativas.includes(c);
+    return `
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:${inativa?'#f3f4f6':'var(--cream)'};border-radius:8px;margin-bottom:6px;opacity:${inativa?.6:1}">
+      <span style="flex:1;font-size:.85rem;font-weight:600;color:${inativa?'#9ca3af':'var(--choco)'};text-decoration:${inativa?'line-through':'none'}">${c}</span>
+      <button onclick="toggleCategoriaAtiva('${c.replace(/'/g,"\\'")}')"
+        style="background:${inativa?'#10b981':'#f59e0b'};color:white;border:none;border-radius:6px;padding:2px 8px;font-size:.7rem;cursor:pointer;font-weight:700">
+        ${inativa?'Ativar':'Desativar'}
+      </button>
+      <button onclick="removerCategoria(${i})" style="background:none;border:none;cursor:pointer;color:var(--text-lt);font-size:.9rem" title="Excluir">✕</button>
+    </div>`;
+  }).join('');
+
+  // Atualiza select de produto (só ativas)
+  const sel = document.getElementById('produto-cat');
+  if (sel) {
+    const cur = sel.value;
+    const ativas = cats.filter(c => !inativas.includes(c));
+    sel.innerHTML = ativas.map(c => `<option value="${c}" ${c===cur?'selected':''}>${c}</option>`).join('');
+  }
+}
+
+function toggleCategoriaAtiva(nome) {
+  if (!db.config.cats_inativas) db.config.cats_inativas = [];
+  const idx = db.config.cats_inativas.indexOf(nome);
+  if (idx >= 0) db.config.cats_inativas.splice(idx, 1);
+  else db.config.cats_inativas.push(nome);
+  saveDB();
+  renderCategorias();
+  toast(idx >= 0 ? `✅ "${nome}" ativada!` : `⏸ "${nome}" desativada!`, 'success');
+}
 </script>
+<!-- Modal Crop/Ajuste de Imagem -->
+<div id="modal-crop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:16px">
+  <div style="color:white;font-size:1rem;font-weight:700;font-family:'Comfortaa',sans-serif" id="crop-modal-title">🖼 Ajustar Imagem</div>
+  <div style="color:rgba(255,255,255,.6);font-size:.78rem;margin-top:-8px">Arraste para mover · Scroll para zoom</div>
+  <canvas id="crop-canvas" width="320" height="320"
+    style="border-radius:12px;background:#111;cursor:grab;touch-action:none;border:2px solid rgba(255,255,255,.2)"></canvas>
+  <div style="display:flex;gap:8px;align-items:center">
+    <button onclick="_cropScale=Math.max(.1,_cropScale-.1);drawCrop()"
+      style="padding:8px 16px;background:rgba(255,255,255,.15);color:white;border:none;border-radius:8px;cursor:pointer;font-size:1.1rem">−</button>
+    <input type="range" min="10" max="300" value="100" step="1"
+      oninput="_cropScale=this.value/100;drawCrop()"
+      style="width:140px;accent-color:#f59e0b" id="crop-zoom-range" />
+    <button onclick="_cropScale=Math.min(5,_cropScale+.1);drawCrop()"
+      style="padding:8px 16px;background:rgba(255,255,255,.15);color:white;border:none;border-radius:8px;cursor:pointer;font-size:1.1rem">+</button>
+  </div>
+  <div style="display:flex;gap:12px">
+    <button onclick="document.getElementById('modal-crop').style.display='none'"
+      style="padding:10px 24px;background:rgba(255,255,255,.15);color:white;border:none;border-radius:10px;cursor:pointer;font-family:'Comfortaa',sans-serif;font-weight:600">Cancelar</button>
+    <button onclick="confirmarCrop()"
+      style="padding:10px 24px;background:#f59e0b;color:white;border:none;border-radius:10px;cursor:pointer;font-family:'Comfortaa',sans-serif;font-weight:700">✅ Usar esta imagem</button>
+  </div>
+</div>
+
 </body>
 </html>
