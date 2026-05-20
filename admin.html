@@ -956,7 +956,9 @@ async function abrirCliente(userId) {
 
   try {
     const base  = 'https://uiujarlepzavgxglkhdw.supabase.co/rest/v1';
-    const hdrs  = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'count=exact' };
+    const { data: { session } } = await sb.auth.getSession();
+    const token = session?.access_token || SUPABASE_KEY;
+    const hdrs  = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${token}`, 'Prefer': 'count=exact' };
 
     const [rProd, rCli, rVendas, rReceitas, rInsumos] = await Promise.all([
       fetch(`${base}/produtos?user_id=eq.${userId}&select=id`, { headers: hdrs }),
@@ -1138,6 +1140,7 @@ function renderPlanos() {
         'Histórico de clientes e vendas',
         'Gateway de pagamento online',
         'Pix e cartão no cardápio',
+        '📊 Dashboard Financeiro',
         'Suporte prioritário',
       ],
       nao: [],

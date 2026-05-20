@@ -95,13 +95,15 @@ body {
 
 .hero-badge {
   display: inline-flex; align-items: center; gap: 8px;
-  background: rgba(212,132,154,.2);
-  border: 1px solid rgba(212,132,154,.4);
-  color: var(--caramel2);
-  font-size: .75rem; font-weight: 500; letter-spacing: 2px;
+  background: rgba(212,132,154,.85);
+  border: 1px solid rgba(255,255,255,.3);
+  color: white;
+  font-size: .75rem; font-weight: 600; letter-spacing: 2px;
   text-transform: uppercase;
-  padding: 6px 18px; border-radius: 30px;
+  padding: 8px 20px; border-radius: 30px;
   margin-bottom: 28px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 16px rgba(0,0,0,.2);
 }
 
 .hero-logo {
@@ -976,6 +978,7 @@ body {
         <button class="pag-opt" data-pag="pix" onclick="setPag(this)">📱 Pix</button>
         <button class="pag-opt" id="pag-cred" data-pag="cartao_cred" onclick="setPag(this)">💳 Crédito</button>
         <button class="pag-opt" id="pag-deb"  data-pag="cartao_deb"  onclick="setPag(this)">💳 Débito</button>
+        <button class="pag-opt" id="pag-online" data-pag="online" onclick="setPag(this)" style="display:none">💻 Pagar Online</button>
       </div>
 
       <!-- Painel dinâmico de pagamento -->
@@ -999,6 +1002,40 @@ body {
 <!-- TOASTS -->
 <div class="toast-wrap" id="toasts"></div>
 
+<!-- MODAL PAGAMENTO ONLINE -->
+<div class="modal-over" id="modal-payment" style="z-index:9999">
+  <div class="modal-box" style="max-width:420px;text-align:center">
+    <div class="modal-hdr">
+      <div class="modal-hdr-icon">💳</div>
+      <div>
+        <div class="modal-hdr-title">Pagamento Online</div>
+        <div class="modal-hdr-sub" id="pay-modal-sub">Aguarde...</div>
+      </div>
+      <button class="modal-close2" onclick="fecharModalPagamento()">✕</button>
+    </div>
+    <div class="modal-body2" style="text-align:center;padding:24px 16px">
+      <div id="pay-loading" style="padding:32px 0">
+        <div style="font-size:2rem;margin-bottom:12px">⏳</div>
+        <div style="font-size:.9rem;color:var(--text2)">Gerando link de pagamento...</div>
+      </div>
+      <div id="pay-ready" style="display:none">
+        <div style="font-size:2.5rem;margin-bottom:12px">🔐</div>
+        <div style="font-size:.95rem;font-weight:600;margin-bottom:8px">Seu pedido foi criado!</div>
+        <div style="font-size:.82rem;color:var(--text2);margin-bottom:20px">Clique abaixo para ir para a tela de pagamento seguro.</div>
+        <a id="pay-link" href="#" target="_blank" onclick="confirmarRedirecionamento()" style="display:inline-block;background:var(--rose);color:white;padding:14px 32px;border-radius:12px;font-weight:700;font-size:1rem;text-decoration:none;margin-bottom:12px">
+          💳 Ir para pagamento
+        </a>
+        <div style="font-size:.72rem;color:var(--text-lt);margin-top:8px">Você será redirecionado para o ambiente seguro do gateway</div>
+      </div>
+      <div id="pay-error" style="display:none">
+        <div style="font-size:2rem;margin-bottom:12px">❌</div>
+        <div style="font-size:.9rem;color:#e53e3e" id="pay-error-msg">Erro ao gerar pagamento</div>
+        <button class="btn-sec" style="margin-top:16px" onclick="fecharModalPagamento()">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 // ════════════════════════════════════════
 // CONFIG — mesmas credenciais do sistema
@@ -1016,7 +1053,7 @@ const URL_PARAMS    = new URLSearchParams(window.location.search);
 const LOJA_USER_ID  = URL_PARAMS.get('id') || '03eb7fd3-a4aa-42fc-9e49-d400095b069a';
 
 // WhatsApp da confeitaria (só números com DDI)
-const WHATSAPP_NUM = '5531997224483'; // DDI+DDD+número
+const WHATSAPP_NUM = ''; // Sempre usa o telefone configurado no perfil
 const INSTAGRAM    = '';  // ← ex: 'https://instagram.com/suaconfeitaria'
 
 // Chave Pix (CPF, CNPJ, e-mail, telefone ou chave aleatória)
@@ -1048,6 +1085,7 @@ async function init() {
     renderHero();
     renderCatalog();
     renderCatsNav();
+    verificarGateway();
     // Se loja não está explicitamente aberta, bloqueia pedidos
     if (perfil.loja_aberta !== true) mostrarLojaFechada();
   } catch(e) {
@@ -1210,8 +1248,9 @@ function renderHero() {
     if (elEndVal) elEndVal.textContent = endFull;
   }
 
-  const tel   = WHATSAPP_NUM || (perfil.tel||'').replace(/\D/g,'');
-  const waUrl = tel ? `https://wa.me/${tel}` : '#';
+  const telRaw = (perfil.tel||'').replace(/\D/g,'');
+  const tel    = telRaw ? (telRaw.startsWith('55') ? telRaw : '55' + telRaw) : '';
+  const waUrl  = tel ? `https://wa.me/${tel}` : '#';
   if (perfil.tel) {
     const elTelWrap = document.getElementById('footer-tel-wrap');
     if (elTelWrap) elTelWrap.style.display = 'block';
@@ -1633,7 +1672,7 @@ function renderPagPanel() {
 }
 
 function abrirWhatsApp() {
-  const tel = WHATSAPP_NUM || (perfil.tel||'').replace(/\D/g,'');
+  const telR = (perfil.tel||'').replace(/\D/g,''); const tel = telR ? (telR.startsWith('55')?telR:'55'+telR) : '';
   if (!tel) { toast('WhatsApp não configurado', '⚠️'); return; }
   window.open(`https://wa.me/${tel}?text=${encodeURIComponent('Olá! Vi o cardápio e gostaria de mais informações 🍰')}`, '_blank');
 }
@@ -1668,6 +1707,12 @@ function setEntrega(tipo) {
 }
 
 async function confirmarPedido() {
+  // Se pagamento online, redirecionar para gateway
+  if (pagamento === 'online') {
+    await iniciarPagamentoOnline();
+    return;
+  }
+
   // Bloco absoluto — verifica loja fechada antes de qualquer coisa
   if (perfil.loja_aberta !== true) {
     toast('🔴 Loja fechada — não estamos aceitando pedidos!', '⚠️');
@@ -1791,7 +1836,7 @@ async function confirmarPedido() {
   } catch(e) { console.error('Erro pedido:', e.message); }
 
   // Monta mensagem WhatsApp
-  const tel2 = WHATSAPP_NUM || (perfil.tel||'').replace(/\D/g,'');
+  const telR2 = (perfil.tel||'').replace(/\D/g,''); const tel2 = telR2 ? (telR2.startsWith('55')?telR2:'55'+telR2) : '';
   let pixMsg = '';
   if (pagamento === 'pix') {
     pixMsg = `\n⚠️ *Envie o comprovante Pix* para confirmar!\nChave: ${PIX_CHAVE || perfil.pix_chave || ''}`;
@@ -1927,6 +1972,121 @@ function initRealtime() {
       if (status === 'SUBSCRIBED') console.log('✅ Realtime conectado');
     });
 }
+
+// ══════════════════════════════════════════
+// PAGAMENTO ONLINE
+// ══════════════════════════════════════════
+
+// Exibe botão "Pagar Online" se o confeiteiro tiver gateway configurado
+function verificarGateway() {
+  const btn = document.getElementById('pag-online');
+  if (!btn) return;
+  if (perfil.payment_gateway && (perfil.payment_gateway === 'mercadopago' || perfil.payment_gateway === 'infinitepay')) {
+    const label = perfil.payment_gateway === 'mercadopago' ? '🔵 Mercado Pago' : '🟢 InfinitePay';
+    btn.textContent = `💻 ${label}`;
+    btn.style.display = 'inline-flex';
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
+async function iniciarPagamentoOnline() {
+  const nome  = document.getElementById('ck-nome').value.trim();
+  const tel   = document.getElementById('ck-tel').value.trim();
+  const email = document.getElementById('ck-email')?.value?.trim() || '';
+
+  if (!nome) { toast('Informe seu nome', '⚠️'); return; }
+  if (!tel)  { toast('Informe seu WhatsApp', '⚠️'); return; }
+
+  const total = cart.reduce((s, c) => s + c.qty * c.preco, 0);
+  const items = cart.map(c => ({ nome: c.nome, qty: c.qty, preco: c.preco, id: c.id }));
+
+  // Fechar checkout e abrir modal de pagamento
+  closeCheckout();
+  abrirModalPagamento();
+
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/functions/v1/create-payment`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
+        body: JSON.stringify({
+          user_id: LOJA_USER_ID,
+          items,
+          total,
+          cliente_nome: nome,
+          cliente_tel: tel,
+          cliente_email: email,
+        }),
+      }
+    );
+
+    const data = await res.json();
+
+    if (!data.success || !data.payment_url) {
+      throw new Error(data.error || 'Erro ao gerar pagamento');
+    }
+
+    // Mostrar link de pagamento
+    document.getElementById('pay-loading').style.display = 'none';
+    document.getElementById('pay-ready').style.display = 'block';
+    document.getElementById('pay-link').href = data.payment_url;
+
+    const gwName = perfil.payment_gateway === 'mercadopago' ? 'Mercado Pago' : 'InfinitePay';
+    document.getElementById('pay-modal-sub').textContent = `Pague com segurança via ${gwName}`;
+
+  } catch (err) {
+    document.getElementById('pay-loading').style.display = 'none';
+    document.getElementById('pay-error').style.display = 'block';
+    document.getElementById('pay-error-msg').textContent = err.message || 'Erro ao gerar pagamento';
+  }
+}
+
+function abrirModalPagamento() {
+  const modal = document.getElementById('modal-payment');
+  if (!modal) return;
+  // Reset estado
+  document.getElementById('pay-loading').style.display = 'block';
+  document.getElementById('pay-ready').style.display = 'none';
+  document.getElementById('pay-error').style.display = 'none';
+  document.getElementById('pay-modal-sub').textContent = 'Aguarde...';
+  modal.classList.add('open');
+}
+
+function fecharModalPagamento() {
+  const modal = document.getElementById('modal-payment');
+  if (modal) modal.classList.remove('open');
+}
+
+function confirmarRedirecionamento() {
+  setTimeout(() => fecharModalPagamento(), 1500);
+}
+
+// Verificar retorno de pagamento pela URL
+function verificarRetornoPagamento() {
+  const params = new URLSearchParams(window.location.search);
+  const status = params.get('pagamento');
+  const ref    = params.get('ref');
+  if (!status) return;
+  if (status === 'sucesso') {
+    toast('✅ Pagamento confirmado! Seu pedido foi recebido.', '✅');
+  } else if (status === 'falhou') {
+    toast('❌ Pagamento não concluído. Tente novamente.', '❌');
+  } else if (status === 'pendente') {
+    toast('⏳ Pagamento pendente. Aguarde a confirmação.', '⏳');
+  }
+  // Limpar params da URL
+  const url = new URL(window.location.href);
+  url.searchParams.delete('pagamento');
+  url.searchParams.delete('ref');
+  window.history.replaceState({}, '', url.toString());
+}
+
+// Chamar ao iniciar
+document.addEventListener('DOMContentLoaded', () => {
+  verificarRetornoPagamento();
+});
 </script>
 </body>
 </html>
