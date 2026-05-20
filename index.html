@@ -5723,6 +5723,14 @@ async function salvarConfig() {
 
   const uid = await getUID();
   if (!uid) { toast('Erro: usuário não identificado','error'); return; }
+
+  // ── Usa JWT do usuário logado (necessário para RLS) ──
+  let authToken = SUPABASE_KEY;
+  if (sbClient) {
+    const { data: sess } = await sbClient.auth.getSession();
+    if (sess?.session?.access_token) authToken = sess.session.access_token;
+  }
+
   const payload = {
     user_id:   uid,
     nome:      db.config.nome      || '',
@@ -5739,19 +5747,26 @@ async function salvarConfig() {
     hero_tipo:    db.config.hero_tipo    || 'foto',
   };
 
+  const hdrs = {
+    'apikey':       SUPABASE_KEY,
+    'Authorization':`Bearer ${authToken}`,
+    'Content-Type': 'application/json',
+    'Prefer':       'return=minimal',
+  };
+
   try {
     let res = await fetch(
       `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/perfis?user_id=eq.${uid}`,
-      { method:'PATCH', headers:{ 'apikey':SUPABASE_KEY, 'Authorization':`Bearer ${SUPABASE_KEY}`, 'Content-Type':'application/json', 'Prefer':'return=minimal' }, body: JSON.stringify(payload) }
+      { method:'PATCH', headers: hdrs, body: JSON.stringify(payload) }
     );
     if (!res.ok) {
       res = await fetch(`https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/perfis`,
-        { method:'POST', headers:{ 'apikey':SUPABASE_KEY, 'Authorization':`Bearer ${SUPABASE_KEY}`, 'Content-Type':'application/json', 'Prefer':'return=minimal' }, body: JSON.stringify(payload) }
+        { method:'POST', headers: hdrs, body: JSON.stringify(payload) }
       );
     }
-    toast(res.ok ? '✅ Dados salvos!' : '⚠️ Erro ao salvar', res.ok ? 'success' : 'error');
+    toast(res.ok ? '✅ Dados salvos!' : '⚠️ Erro ao salvar — veja o console', res.ok ? 'success' : 'error');
   } catch(e) {
-    toast('Erro ao salvar dados', 'error');
+    toast('Erro ao salvar dados: ' + e.message, 'error');
   }
 }
 
@@ -6690,18 +6705,36 @@ function toggleGatewayFields() {
 }
 
 async function salvarGateway() {
-  const gw     = document.querySelector('input[name="gateway"]:checked')?.value || '';
+  const gw      = document.querySelector('input[name="gateway"]:checked')?.value || '';
   const mpToken = document.getElementById('cfg-mp-token')?.value?.trim() || '';
   const ipTag   = document.getElementById('cfg-ip-tag')?.value?.trim() || '';
-  const uid = (await sb.auth.getUser()).data?.user?.id;
-  if (!uid) return toast('Usuário não autenticado', '❌');
-  const { error } = await sb.from('perfis').update({
-    payment_gateway:  gw || null,
-    mp_access_token:  mpToken || null,
-    infinitepay_tag:  ipTag || null,
-  }).eq('user_id', uid);
-  if (error) return toast('Erro ao salvar: ' + error.message, '❌');
-  toast('Configuração de pagamento salva! ✅', '✅');
+  const uid     = await getUID();
+  if (!uid) return toast('Usuário não autenticado', 'error');
+
+  let authToken = SUPABASE_KEY;
+  if (sbClient) {
+    const { data: sess } = await sbClient.auth.getSession();
+    if (sess?.session?.access_token) authToken = sess.session.access_token;
+  }
+
+  const res = await fetch(
+    `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/perfis?user_id=eq.${uid}`,
+    {
+      method: 'PATCH',
+      headers: {
+        'apikey':       SUPABASE_KEY,
+        'Authorization':`Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+        'Prefer':       'return=minimal',
+      },
+      body: JSON.stringify({
+        payment_gateway: gw || null,
+        mp_access_token: mpToken || null,
+        infinitepay_tag: ipTag || null,
+      }),
+    }
+  );
+  toast(res.ok ? '✅ Configuração de pagamento salva!' : '❌ Erro ao salvar: ' + res.status, res.ok ? 'success' : 'error');
 }
 
 function carregarGateway(c) {
@@ -6824,14 +6857,23 @@ function drawCrop() {
 async function confirmarCrop() {
   const canvas = document.getElementById('crop-canvas');
   document.getElementById('modal-crop').style.display = 'none';
-  toast('⏳ Enviando imagem...', 'info');
+  toast('⏳ Enviando imagem...', 'success');
 
   // Converter canvas para blob
   const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.88));
   const uid  = await getUID();
+  if (!uid) { toast('⚠️ Usuário não autenticado — salvo localmente', 'error'); aplicarImagem(canvas.toDataURL('image/jpeg', 0.88)); return; }
+
+  // ── Pega JWT do usuário logado (necessário para RLS do Storage) ──
+  let authToken = SUPABASE_KEY;
+  if (sbClient) {
+    const { data: sess } = await sbClient.auth.getSession();
+    if (sess?.session?.access_token) authToken = sess.session.access_token;
+  }
+
   const fileName = `${uid}/${_cropTarget}_${Date.now()}.jpg`;
 
-  // Upload para Supabase Storage
+  // Upload para Supabase Storage com JWT do usuário
   try {
     const uploadRes = await fetch(
       `https://uiujarlepzavgxglkhdw.supabase.co/storage/v1/object/imagens/${fileName}`,
@@ -6839,7 +6881,7 @@ async function confirmarCrop() {
         method: 'POST',
         headers: {
           'apikey':        SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Authorization': `Bearer ${authToken}`,   // <-- JWT do usuário, não anon key
           'Content-Type':  'image/jpeg',
           'x-upsert':      'true',
         },
@@ -6848,22 +6890,25 @@ async function confirmarCrop() {
     );
 
     if (!uploadRes.ok) {
-      // Fallback: usar base64 se storage falhar
+      const errText = await uploadRes.text();
+      console.warn('Storage upload falhou:', uploadRes.status, errText);
+      // Fallback: base64 (funciona localmente, não aparece no cardápio de outro dispositivo)
       const url = canvas.toDataURL('image/jpeg', 0.88);
       aplicarImagem(url);
-      toast('✅ Imagem salva localmente!', 'success');
+      toast('⚠️ Storage indisponível — imagem salva localmente. Verifique permissões do bucket.', 'error');
       return;
     }
 
+    // URL pública permanente
     const publicUrl = `https://uiujarlepzavgxglkhdw.supabase.co/storage/v1/object/public/imagens/${fileName}`;
     aplicarImagem(publicUrl);
-    toast('✅ Imagem enviada com sucesso!', 'success');
+    toast('✅ Imagem enviada! Lembre de clicar em "Salvar dados" abaixo.', 'success');
 
   } catch(e) {
-    // Fallback base64
+    console.warn('confirmarCrop error:', e.message);
     const url = canvas.toDataURL('image/jpeg', 0.88);
     aplicarImagem(url);
-    toast('✅ Imagem salva!', 'success');
+    toast('⚠️ Erro de rede — imagem salva localmente.', 'error');
   }
 }
 
