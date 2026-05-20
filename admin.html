@@ -1039,13 +1039,17 @@ async function alterarStatusCliente(novoStatus) {
   if (!clienteAtual) return;
   const userId = clienteAtual.user_id;
   try {
+    // Usa JWT da sessão ativa (não a anon key)
+    const { data: { session } } = await sb.auth.getSession();
+    const token = session?.access_token || SUPABASE_KEY;
+
     const res = await fetch(
       `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/perfis?user_id=eq.${userId}`,
       {
         method: 'PATCH',
         headers: {
           'apikey':       SUPABASE_KEY,
-          'Authorization':`Bearer ${SUPABASE_KEY}`,
+          'Authorization':`Bearer ${token}`,
           'Content-Type': 'application/json',
           'Prefer':       'return=minimal',
         },
