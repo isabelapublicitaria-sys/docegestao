@@ -3356,7 +3356,7 @@ async function savePerfil() {
       pag_cred:         db.config.pag_cred     === true,
       pag_deb:          db.config.pag_deb      === true,
       pag_entrega:      db.config.pag_entrega  !== false,
-      loja_aberta:      db.config.loja_aberta  === true,
+      loja_aberta:      db.config.loja_aberta === true,
       horarios:         db.config.horarios ? JSON.stringify(db.config.horarios) : null,
     }, { onConflict: 'user_id' });
   } catch(e) {
@@ -6011,12 +6011,27 @@ async function toggleLojaStatus() {
   saveDB();
   document.getElementById('loja-status-label').textContent = aberta ? 'Aberta' : 'Fechada';
   document.getElementById('loja-status-label').style.color = aberta ? '#2e7d32' : 'var(--text-lt)';
-  // Salva via REST
+
+  // Usa JWT da sessão — anon key não passa pelo RLS
   const _uid1 = await getUID();
-  fetch(`https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/perfis?user_id=eq.${_uid1}`,
-    { method:'PATCH', headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json','Prefer':'return=minimal'},
-      body: JSON.stringify({ loja_aberta: aberta }) }
-  ).then(r => toast(aberta ? '🟢 Loja aberta!' : '🔴 Loja fechada!', 'success'));
+  let _tok = SUPABASE_KEY;
+  if (sbClient) {
+    const { data: _sess } = await sbClient.auth.getSession();
+    if (_sess?.session?.access_token) _tok = _sess.session.access_token;
+  }
+  const _res = await fetch(
+    `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/perfis?user_id=eq.${_uid1}`,
+    { method: 'PATCH',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${_tok}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ loja_aberta: aberta })
+    }
+  );
+  if (_res.ok) {
+    toast(aberta ? '🟢 Loja aberta!' : '🔴 Loja fechada!', 'success');
+  } else {
+    toast('⚠️ Erro ao salvar status: ' + _res.status, 'error');
+    console.warn('toggleLojaStatus error:', await _res.text());
+  }
 }
 
 async function carregarConfig() {
@@ -6283,7 +6298,7 @@ async function salvarPagConfig() {
     pag_cred:    db.config.pag_cred,
     pag_deb:     db.config.pag_deb,
     pag_entrega: db.config.pag_entrega,
-    loja_aberta: db.config.loja_aberta !== false,
+    loja_aberta: db.config.loja_aberta === true,
   };
 
   try {
