@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <meta charset="UTF-8">
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cardápio — Gestta</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1084,7 +1083,7 @@ async function loadPerfil() {
   perfil = data;
   // Normaliza loja_aberta — pode vir como boolean true, string "true", ou 1
   perfil.loja_aberta = data.loja_aberta === true || data.loja_aberta === 'true' || data.loja_aberta === 1;
-  console.log('🏪 loja_aberta raw:', data.loja_aberta, '→ normalizado:', perfil.loja_aberta);
+  // loja_aberta normalizado
 
   // ── Formas de pagamento ──────────────────────────────────────
   // Se payment_gateway está ativo (MP ou InfinitePay), substitui o Pix manual pelo gateway
@@ -1137,7 +1136,7 @@ async function loadPerfil() {
 }
 
 function mostrarLojaFechada() {
-  console.log('🔴 Aplicando bloqueio de loja fechada');
+  // console.log('🔴 Aplicando bloqueio de loja fechada');
 
   // Banner escuro abaixo do menubar
   document.getElementById('banner-fechada')?.remove();
@@ -1581,7 +1580,7 @@ async function openCheckout() {
     if (res.ok) {
       const arr = await res.json();
       const lojaAberta = arr?.[0]?.loja_aberta;
-      console.log('🏪 loja_aberta no checkout:', lojaAberta);
+      // console.log('🏪 loja_aberta no checkout:', lojaAberta);
       if (lojaAberta !== true) {
         toast('🔴 Loja fechada — não estamos aceitando pedidos agora.', '⚠️');
         closeDrawer();
@@ -1725,6 +1724,10 @@ function setEntrega(tipo) {
   renderPagPanel(); // Atualiza texto do painel (retirada vs entrega)
 }
 
+// Rate limiting — evita pedidos duplicados/spam
+let _ultimoPedido = 0;
+let _pedidoEmAndamento = false;
+
 async function confirmarPedido() {
   // Bloco absoluto — verifica loja fechada antes de qualquer coisa
   if (!perfil.loja_aberta) {
@@ -1741,6 +1744,17 @@ async function confirmarPedido() {
   if (!nome) { toast('Informe seu nome', '⚠️'); return; }
   if (!tel)  { toast('Informe seu WhatsApp', '⚠️'); return; }
   if (tipoEntrega === 'entrega' && !end) { toast('Informe o endereço', '⚠️'); return; }
+
+  // Rate limiting — bloqueia pedido duplicado em menos de 30 segundos
+  const agora = Date.now();
+  if (_pedidoEmAndamento) { toast('⏳ Aguarde, seu pedido está sendo processado...', 'error'); return; }
+  if (agora - _ultimoPedido < 30000) {
+    const seg = Math.ceil((30000 - (agora - _ultimoPedido)) / 1000);
+    toast(`⏳ Aguarde ${seg}s antes de fazer outro pedido`, 'error');
+    return;
+  }
+  _pedidoEmAndamento = true;
+  _ultimoPedido = agora;
 
   const btn = document.getElementById('btn-confirm');
   btn.disabled = true; btn.textContent = 'Enviando...';
@@ -1781,7 +1795,7 @@ async function confirmarPedido() {
 
     if (clientesFound && clientesFound.length > 0) {
       clienteId = clientesFound[0].id;
-      console.log('Cliente existente:', clienteId);
+      // console.log('Cliente existente:', clienteId);
     } else {
       // Cria novo cliente
       const novoCliente = {
@@ -1821,7 +1835,7 @@ async function confirmarPedido() {
       console.warn('Erro venda:', errTxt);
       toast('⚠️ Erro ao registrar no sistema: ' + errTxt, '⚠️');
     } else {
-      console.log('✅ Venda registrada:', pedidoId);
+      // console.log('✅ Venda registrada:', pedidoId);
     }
 
     // 3. Baixa estoque — busca qty atual do banco antes de atualizar
@@ -1841,7 +1855,7 @@ async function confirmarPedido() {
               method: 'PATCH', headers,
               body: JSON.stringify({ qty: novaQty }),
             });
-            console.log(`📦 Estoque ${item.nome}: ${qtyAtual} → ${novaQty}`);
+            // console.log(`📦 Estoque ${item.nome}: ${qtyAtual} → ${novaQty}`);
           }
         }
       } catch(e) { console.warn('Estoque update:', e.message); }
@@ -1877,6 +1891,7 @@ ${obs ? `\n*Obs:* ${obs}` : ''}
   }
 
   btn.disabled = false; btn.textContent = '✓ Confirmar pedido';
+  _pedidoEmAndamento = false;
 
   // ── Pagamento online: redireciona para MP / InfinitePay ──────
   if (pagamento === 'online') {
@@ -1909,6 +1924,7 @@ ${obs ? `\n*Obs:* ${obs}` : ''}
       } else {
         toast('⚠️ Erro ao gerar link: ' + (mpData.error || 'tente novamente'), 'error');
         btn.disabled = false; btn.textContent = '✓ Confirmar pedido';
+        _pedidoEmAndamento = false;
         return;
       }
     } catch(e) {
