@@ -1163,6 +1163,33 @@
       <button class="btn-primary" id="btn-login" onclick="doLogin()">
         Entrar na conta
       </button>
+      <div style="text-align:center;margin-top:10px">
+        <a href="#" onclick="mostrarRecuperarSenha()" style="font-size:.8rem;color:var(--text-lt);text-decoration:none;opacity:.7">
+          Esqueci minha senha
+        </a>
+      </div>
+    </div>
+
+    <!-- RECUPERAR SENHA -->
+    <div id="recover-form" class="auth-form" style="display:none">
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:1.5rem;margin-bottom:6px">🔑</div>
+        <div style="font-size:.95rem;font-weight:600;color:var(--text-main)">Recuperar senha</div>
+        <div style="font-size:.78rem;color:var(--text-lt);margin-top:4px">Enviaremos um link para o seu e-mail</div>
+      </div>
+      <div class="form-group">
+        <label>E-mail cadastrado</label>
+        <input type="email" id="recover-email" placeholder="seu@email.com" />
+      </div>
+      <div id="recover-msg"></div>
+      <button class="btn-primary" id="btn-recover" onclick="enviarRecuperacao()">
+        Enviar link de recuperação
+      </button>
+      <div style="text-align:center;margin-top:10px">
+        <a href="#" onclick="mostrarLogin()" style="font-size:.8rem;color:var(--text-lt);text-decoration:none;opacity:.7">
+          ← Voltar ao login
+        </a>
+      </div>
     </div>
 
     <!-- REGISTER -->
@@ -3061,6 +3088,104 @@ function switchAuthTab(tab) {
   document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', (i===0 && tab==='login') || (i===1 && tab==='register')));
   document.getElementById('login-form').style.display = tab==='login' ? 'flex' : 'none';
   document.getElementById('register-form').style.display = tab==='register' ? 'flex' : 'none';
+}
+
+function mostrarRecuperarSenha() {
+  document.getElementById('login-form').style.display    = 'none';
+  document.getElementById('register-form').style.display = 'none';
+  document.getElementById('recover-form').style.display  = 'block';
+  document.getElementById('recover-email').value = document.getElementById('login-email').value || '';
+  document.getElementById('recover-msg').innerHTML = '';
+}
+
+function mostrarLogin() {
+  document.getElementById('login-form').style.display    = 'block';
+  document.getElementById('register-form').style.display = 'none';
+  document.getElementById('recover-form').style.display  = 'none';
+}
+
+async function enviarRecuperacao() {
+  const email = document.getElementById('recover-email').value.trim();
+  const msg   = document.getElementById('recover-msg');
+  const btn   = document.getElementById('btn-recover');
+
+  if (!email) {
+    msg.innerHTML = '<div style="color:#e53e3e;font-size:.8rem;margin-bottom:8px">Informe seu e-mail</div>';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+  msg.innerHTML = '';
+
+  try {
+    const { error } = await sbClient.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://gesttaconfeitaria.com.br/index.html?reset=true',
+    });
+
+    if (error) {
+      msg.innerHTML = `<div style="color:#e53e3e;font-size:.8rem;margin-bottom:8px">${error.message}</div>`;
+    } else {
+      msg.innerHTML = `<div style="color:#2e7d32;font-size:.82rem;text-align:center;padding:10px;background:#e8f5e9;border-radius:8px;margin-bottom:8px">
+        ✅ Link enviado para <strong>${email}</strong>!<br>
+        <span style="opacity:.8">Verifique sua caixa de entrada e spam.</span>
+      </div>`;
+      btn.textContent = 'Reenviado!';
+    }
+  } catch(e) {
+    msg.innerHTML = `<div style="color:#e53e3e;font-size:.8rem;margin-bottom:8px">Erro: ${e.message}</div>`;
+  } finally {
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = 'Enviar link de recuperação';
+    }, 3000);
+  }
+}
+
+// Detecta se veio de link de recuperação de senha (?reset=true)
+window.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('reset') === 'true') {
+    // Supabase já lida com o token na URL automaticamente
+    // Mostra formulário para nova senha
+    setTimeout(() => {
+      const novaDiv = document.getElementById('login-form');
+      if (novaDiv) {
+        novaDiv.innerHTML = `
+          <div style="text-align:center;margin-bottom:16px">
+            <div style="font-size:1.5rem">🔐</div>
+            <div style="font-weight:600;color:var(--text-main)">Criar nova senha</div>
+          </div>
+          <div class="form-group">
+            <label>Nova senha</label>
+            <input type="password" id="nova-senha" placeholder="Mínimo 6 caracteres" />
+          </div>
+          <div class="form-group">
+            <label>Confirmar nova senha</label>
+            <input type="password" id="nova-senha2" placeholder="Repita a senha" />
+          </div>
+          <div id="nova-senha-msg"></div>
+          <button class="btn-primary" onclick="salvarNovaSenha()">Salvar nova senha</button>`;
+      }
+    }, 500);
+  }
+});
+
+async function salvarNovaSenha() {
+  const s1  = document.getElementById('nova-senha')?.value;
+  const s2  = document.getElementById('nova-senha2')?.value;
+  const msg = document.getElementById('nova-senha-msg');
+
+  if (!s1 || s1.length < 6) { msg.innerHTML = '<div style="color:#e53e3e;font-size:.8rem">Mínimo 6 caracteres</div>'; return; }
+  if (s1 !== s2) { msg.innerHTML = '<div style="color:#e53e3e;font-size:.8rem">Senhas não conferem</div>'; return; }
+
+  const { error } = await sbClient.auth.updateUser({ password: s1 });
+  if (error) {
+    msg.innerHTML = `<div style="color:#e53e3e;font-size:.8rem">${error.message}</div>`;
+  } else {
+    msg.innerHTML = '<div style="color:#2e7d32;font-size:.82rem">✅ Senha alterada com sucesso! Redirecionando...</div>';
+    setTimeout(() => window.location.href = 'https://gesttaconfeitaria.com.br/index.html', 2000);
+  }
 }
 
 async function doLogin() {
