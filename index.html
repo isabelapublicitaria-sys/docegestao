@@ -852,12 +852,17 @@
     .btn-hamburger { display: flex; }
     .sidebar { transform: translateX(-100%); transition: transform .28s ease; }
     .sidebar.open { transform: translateX(0); }
-    .main { margin-left: 0; padding: 16px; }
+    .main { margin-left: 0; padding: 0; }
+    .topbar { padding: 0 16px 0 68px; height: 56px; }
+    .topbar-title { font-size: 1.1rem; }
+    .topbar-date { display: none; }
+    .topbar-btn { padding: 7px 12px; font-size: .78rem; }
     .dash-grid, .pdv-grid { grid-template-columns: 1fr; }
     .form-row { grid-template-columns: 1fr; }
     .form-row.triple { grid-template-columns: 1fr; }
-    .page-header { padding: 60px 0 16px; }
+    .page-header { padding: 16px 0 16px 56px; }
     .page-header h2 { font-size: 1.3rem; }
+    .page-header .page-date { font-size: .75rem; }
     .stat-cards { grid-template-columns: 1fr 1fr; }
     .vendas-table { font-size: .8rem; }
     .vendas-table th, .vendas-table td { padding: 10px 8px; }
@@ -1176,7 +1181,7 @@
   <div class="auth-pattern"></div>
   <div class="auth-card">
     <div class="auth-logo">
-      <svg width="140" height="42" viewBox="0 0 140 42" xmlns="http://www.w3.org/2000/svg">
+      <svg width="100%" height="42" viewBox="0 0 140 42" style="max-width:140px" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="gauth" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#6B2D5E"/>
@@ -1283,7 +1288,7 @@
     <div class="sidebar-header">
       <div class="sidebar-brand">
         <div>
-          <svg width="90" height="28" viewBox="0 0 90 28" xmlns="http://www.w3.org/2000/svg">
+          <svg width="90" height="28" viewBox="0 0 90 28" style="max-width:90px" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="gsb" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#ffffff"/>
