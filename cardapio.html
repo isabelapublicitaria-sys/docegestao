@@ -1874,11 +1874,51 @@ ${obs ? `\n*Obs:* ${obs}` : ''}
   }
 
   btn.disabled = false; btn.textContent = '✓ Confirmar pedido';
-  closeCheckout();
 
+  // ── Pagamento online: redireciona para MP / InfinitePay ──────
+  if (pagamento === 'online') {
+    closeCheckout();
+    toast('⏳ Gerando link de pagamento...', 'success');
+    try {
+      const fnUrl = 'https://uiujarlepzavgxglkhdw.supabase.co/functions/v1/create-payment';
+      const mpRes = await fetch(fnUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA',
+          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA',
+        },
+        body: JSON.stringify({
+          user_id:      LOJA_USER_ID,
+          items:        cart.map(c => ({ nome: c.nome, qty: c.qty, preco: c.preco })),
+          total,
+          cliente_nome: nome,
+          cliente_tel:  tel,
+          cliente_email: document.getElementById('ck-email')?.value || '',
+          order_ref:    pedidoId,
+        }),
+      });
+      const mpData = await mpRes.json();
+      if (mpData.success && mpData.payment_url) {
+        cart = []; updateCartUI();
+        window.location.href = mpData.payment_url; // redireciona para o MP
+        return;
+      } else {
+        toast('⚠️ Erro ao gerar link: ' + (mpData.error || 'tente novamente'), 'error');
+        btn.disabled = false; btn.textContent = '✓ Confirmar pedido';
+        return;
+      }
+    } catch(e) {
+      toast('⚠️ Erro de conexão com o gateway: ' + e.message, 'error');
+      btn.disabled = false; btn.textContent = '✓ Confirmar pedido';
+      return;
+    }
+  }
+
+  // ── Pagamentos locais (Pix, Dinheiro, Cartão) ────────────────
+  closeCheckout();
   document.getElementById('success-num').textContent = `Pedido ${pedidoId}`;
 
-  // Mensagem de sucesso diferente por pagamento
   const subEl = document.querySelector('.success-sub');
   if (subEl) {
     if (pagamento === 'pix') {
