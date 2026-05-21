@@ -1014,10 +1014,34 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 // ATENÇÃO: preencha o user_id do dono da confeitaria
 // (copie do painel Supabase → Authentication → Users)
 // ════════════════════════════════════════
-// Pega o ID da confeitaria pela URL: cardapio.html?id=UUID
-// Se não informado, usa o UID padrão (para compatibilidade)
-const URL_PARAMS    = new URLSearchParams(window.location.search);
-const LOJA_USER_ID  = URL_PARAMS.get('id') || '03eb7fd3-a4aa-42fc-9e49-d400095b069a';
+// Pega o ID da confeitaria pela URL:
+// cardapio.html?id=UUID       (formato antigo — ainda funciona)
+// cardapio.html?loja=nandacaccia  (formato amigável com slug)
+
+const URL_PARAMS  = new URLSearchParams(window.location.search);
+const _ID_DIRETO  = URL_PARAMS.get('id') || null;
+const _SLUG_PARAM = URL_PARAMS.get('loja') || null;
+let LOJA_USER_ID  = _ID_DIRETO || '03eb7fd3-a4aa-42fc-9e49-d400095b069a';
+
+async function resolverSlug() {
+  if (!_SLUG_PARAM) return;
+  try {
+    const ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA';
+    const res = await fetch(
+      `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/perfis?slug=eq.${encodeURIComponent(_SLUG_PARAM)}&select=user_id&limit=1`,
+      { headers: { 'apikey': ANON, 'Authorization': `Bearer ${ANON}` } }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.[0]?.user_id) {
+        LOJA_USER_ID = data[0].user_id;
+      } else {
+        document.getElementById('loading').innerHTML = '<div style="text-align:center;padding:80px 20px;color:#b09aa8;font-size:1.1rem">Loja não encontrada 😔<br><small>Verifique o link e tente novamente.</small></div>';
+        throw new Error('Slug não encontrado: ' + _SLUG_PARAM);
+      }
+    }
+  } catch(e) { console.warn('resolverSlug:', e.message); }
+}
 
 // WhatsApp da confeitaria (só números com DDI)
 const WHATSAPP_NUM = ''; // Sempre usa o telefone configurado no perfil
@@ -1045,8 +1069,58 @@ let filtered    = [];
 // ════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════
+function mostrarRetornoMP(status, ref) {
+  // Esconde o loading
+  setTimeout(() => {
+    const el = document.getElementById('loading');
+    if (el) el.classList.add('hide');
+  }, 300);
+
+  const cfg = {
+    sucesso:  { emoji:'✅', titulo:'Pagamento confirmado!',   cor:'#2e7d32', bg:'#e8f5e9', msg:'Seu pedido foi recebido e o pagamento aprovado. Em breve entraremos em contato!' },
+    falhou:   { emoji:'❌', titulo:'Pagamento não aprovado',  cor:'#c62828', bg:'#ffebee', msg:'Não conseguimos processar seu pagamento. Tente novamente ou escolha outra forma de pagamento.' },
+    pendente: { emoji:'⏳', titulo:'Pagamento em análise',    cor:'#e65100', bg:'#fff3e0', msg:'Seu pagamento está sendo processado. Você receberá uma confirmação em breve.' },
+  };
+  const c = cfg[status] || cfg.pendente;
+
+  document.body.innerHTML = `
+    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f9f4f7;font-family:'Comfortaa',sans-serif;padding:20px">
+      <div style="background:white;border-radius:24px;padding:48px 36px;max-width:420px;width:100%;text-align:center;box-shadow:0 8px 40px rgba(107,45,94,0.12)">
+        <div style="font-size:4rem;margin-bottom:16px">${c.emoji}</div>
+        <h1 style="font-size:1.5rem;color:#3d1a35;margin:0 0 12px;font-weight:700">${c.titulo}</h1>
+        ${ref ? `<div style="background:#f9f4f7;border-radius:8px;padding:8px 16px;display:inline-block;margin-bottom:16px;font-size:.82rem;color:#6B2D5E;font-weight:600">Pedido ${ref.split('-').pop() || ref}</div>` : ''}
+        <p style="color:#6b5a65;font-size:.9rem;line-height:1.7;margin:0 0 28px">${c.msg}</p>
+        <div style="background:${c.bg};border-radius:12px;padding:16px;margin-bottom:28px">
+          <p style="margin:0;font-size:.82rem;color:${c.cor};font-weight:600">${
+            status === 'sucesso' ? '🍰 Seu docinho está sendo preparado com amor!' :
+            status === 'falhou' ? '💳 Verifique os dados do cartão e tente novamente.' :
+            '📧 Você receberá uma confirmação por e-mail.'
+          }</p>
+        </div>
+        <a href="javascript:history.back()" style="display:inline-block;background:linear-gradient(135deg,#6B2D5E,#D4587A);color:white;text-decoration:none;padding:14px 32px;border-radius:50px;font-size:.9rem;font-weight:700;box-shadow:0 4px 16px rgba(212,88,122,0.3)">
+          ← Voltar ao cardápio
+        </a>
+        <div style="margin-top:20px">
+          <svg width="80" height="24" viewBox="0 0 80 24" xmlns="http://www.w3.org/2000/svg">
+            <defs><linearGradient id="gl" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#6B2D5E"/><stop offset="100%" style="stop-color:#D4587A"/></linearGradient></defs>
+            <text x="2" y="19" font-family="Georgia,serif" font-size="18" font-style="italic" font-weight="700" fill="url(#gl)" letter-spacing="-0.5">Gestta</text>
+          </svg>
+        </div>
+      </div>
+    </div>`;
+}
+
 async function init() {
+  // Detecta retorno do Mercado Pago (?pagamento=sucesso/falhou/pendente)
+  const _pgStatus = new URLSearchParams(window.location.search).get('pagamento');
+  const _pgRef    = new URLSearchParams(window.location.search).get('ref');
+  if (_pgStatus) {
+    mostrarRetornoMP(_pgStatus, _pgRef);
+    return;
+  }
+
   try {
+    await resolverSlug(); // resolve slug antes de qualquer coisa
     await loadPerfil();
     await loadProdutos();
     renderHero();
