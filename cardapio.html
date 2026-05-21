@@ -1051,7 +1051,8 @@ async function init() {
     renderCatalog();
     renderCatsNav();
     // Se loja não está explicitamente aberta, bloqueia pedidos
-    if (perfil.loja_aberta !== true) mostrarLojaFechada();
+    // Verifica loja aberta com normalização (boolean, string ou número)
+    if (!perfil.loja_aberta) mostrarLojaFechada();
   } catch(e) {
     console.error('Init error:', e);
     renderCatalog();
@@ -1078,7 +1079,9 @@ async function loadPerfil() {
   if (!data) return;
 
   perfil = data;
-  perfil.loja_aberta = data.loja_aberta === true;
+  // Normaliza loja_aberta — pode vir como boolean true, string "true", ou 1
+  perfil.loja_aberta = data.loja_aberta === true || data.loja_aberta === 'true' || data.loja_aberta === 1;
+  console.log('🏪 loja_aberta raw:', data.loja_aberta, '→ normalizado:', perfil.loja_aberta);
 
   // ── Formas de pagamento ──────────────────────────────────────
   // Se payment_gateway está ativo (MP ou InfinitePay), substitui o Pix manual pelo gateway
@@ -1342,7 +1345,7 @@ function renderCatalog(prods) {
   el.innerHTML = html;
 
   // Se loja fechada, esconde botões
-  if (perfil.loja_aberta === false) mostrarLojaFechada();
+  if (!perfil.loja_aberta) mostrarLojaFechada();
 }
 
 function renderCard(p, isDestaque = false) {
@@ -1371,7 +1374,7 @@ function renderCard(p, isDestaque = false) {
           <small>a partir de</small>
           ${formatMoney(p.preco)}
         </div>
-        ${esgotado || perfil.loja_aberta === false
+        ${esgotado || !perfil.loja_aberta
           ? '<span style="font-size:.75rem;color:var(--text3)">Indisponível</span>'
           : `<button class="btn-add" onclick="event.stopPropagation();addToCart('${p.id}')" title="Adicionar">+</button>`
         }
@@ -1424,7 +1427,7 @@ function filterProds() {
 // CART
 // ════════════════════════════════════════
 function addToCart(id) {
-  if (perfil.loja_aberta !== true) {
+  if (!perfil.loja_aberta) {
     toast('🔴 Loja fechada — não aceitamos pedidos agora.', '⚠️');
     return;
   }
@@ -1721,7 +1724,7 @@ function setEntrega(tipo) {
 
 async function confirmarPedido() {
   // Bloco absoluto — verifica loja fechada antes de qualquer coisa
-  if (perfil.loja_aberta !== true) {
+  if (!perfil.loja_aberta) {
     toast('🔴 Loja fechada — não estamos aceitando pedidos!', '⚠️');
     closeCheckout();
     return;
