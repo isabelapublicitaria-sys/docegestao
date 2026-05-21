@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <meta charset="UTF-8">
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gestta – Confeitaria</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -822,13 +821,50 @@
   @keyframes toastIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
 
   /* RESPONSIVE */
+  /* Hamburger button */
+  .btn-hamburger {
+    display: none;
+    position: fixed; top: 14px; left: 14px; z-index: 1100;
+    background: linear-gradient(135deg, var(--rose), var(--rose-dk));
+    border: none; border-radius: 12px;
+    width: 44px; height: 44px;
+    cursor: pointer; flex-direction: column;
+    align-items: center; justify-content: center; gap: 5px;
+    box-shadow: 0 4px 14px rgba(200,100,120,0.35);
+  }
+  .btn-hamburger span {
+    display: block; width: 20px; height: 2px;
+    background: white; border-radius: 2px;
+    transition: all .25s ease;
+  }
+  .btn-hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .btn-hamburger.open span:nth-child(2) { opacity: 0; }
+  .btn-hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+  /* Overlay escuro por trás do menu */
+  .sidebar-overlay {
+    display: none; position: fixed; inset: 0; z-index: 1000;
+    background: rgba(30,10,20,.45); backdrop-filter: blur(2px);
+  }
+  .sidebar-overlay.open { display: block; }
+
   @media (max-width: 900px) {
-    .sidebar { transform: translateX(-100%); }
+    .btn-hamburger { display: flex; }
+    .sidebar { transform: translateX(-100%); transition: transform .28s ease; }
     .sidebar.open { transform: translateX(0); }
-    .main { margin-left: 0; }
+    .main { margin-left: 0; padding: 16px; }
     .dash-grid, .pdv-grid { grid-template-columns: 1fr; }
     .form-row { grid-template-columns: 1fr; }
     .form-row.triple { grid-template-columns: 1fr; }
+    .page-header { padding: 60px 0 16px; }
+    .page-header h2 { font-size: 1.3rem; }
+    .stat-cards { grid-template-columns: 1fr 1fr; }
+    .vendas-table { font-size: .8rem; }
+    .vendas-table th, .vendas-table td { padding: 10px 8px; }
+    .modal-box { margin: 16px; width: calc(100% - 32px) !important; max-height: 90vh; overflow-y: auto; }
+    .btn-primary, .btn-secondary { padding: 12px 18px; font-size: .85rem; }
+    .pdv-grid { grid-template-columns: 1fr; }
+    .chart-row { grid-template-columns: 1fr; }
   }
 
   /* EMPTY STATE */
@@ -1235,6 +1271,13 @@
      APP
 ══════════════════════════════════ -->
 <div id="app">
+  <!-- Hamburger button (mobile) -->
+  <button class="btn-hamburger" id="btn-hamburger" onclick="toggleSidebar()" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+  <!-- Overlay -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
   <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
@@ -2244,6 +2287,16 @@
               <input type="text" id="cfg-instagram" placeholder="https://instagram.com/suaconfeitaria" />
             </div>
             <div class="form-group">
+              <label>🔗 Link amigável do cardápio (slug)</label>
+              <div style="display:flex;gap:8px;align-items:center">
+                <span style="font-size:.8rem;color:var(--text-lt);white-space:nowrap">gesttaconfeitaria.com.br/cardapio.html?loja=</span>
+                <input type="text" id="cfg-slug" placeholder="nandacaccia" style="flex:1"
+                  oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'')"
+                  title="Apenas letras minúsculas, números e hífens" />
+              </div>
+              <div id="slug-preview" style="font-size:.72rem;color:var(--caramel-dk);margin-top:4px"></div>
+            </div>
+            <div class="form-group">
               <label>Endereço (opcional)</label>
               <input type="text" id="cfg-endereco" placeholder="Rua, número, bairro — aparece no cardápio" />
             </div>
@@ -3105,6 +3158,23 @@ function switchAuthTab(tab) {
   document.getElementById('register-form').style.display = tab==='register' ? 'flex' : 'none';
 }
 
+function toggleSidebar() {
+  const sidebar  = document.getElementById('sidebar');
+  const btn      = document.getElementById('btn-hamburger');
+  const overlay  = document.getElementById('sidebar-overlay');
+  const isOpen   = sidebar.classList.toggle('open');
+  btn.classList.toggle('open', isOpen);
+  overlay.classList.toggle('open', isOpen);
+  document.body.style.overflow = isOpen ? 'hidden' : '';
+}
+
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('btn-hamburger').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
 function mostrarRecuperarSenha() {
   document.getElementById('login-form').style.display    = 'none';
   document.getElementById('register-form').style.display = 'none';
@@ -3520,9 +3590,10 @@ async function savePerfil() {
 async function abrirCardapioPublico(e) {
   e.preventDefault();
   const uid  = await getUID();
-  // Usa o host atual (funciona tanto em localhost quanto em produção)
+  const slug = db.config.slug?.trim() || null;
   const base = window.location.origin + window.location.pathname.replace('index.html','').replace(/\/[^/]*$/, '/') + 'cardapio.html';
-  const url  = uid ? `${base}?id=${uid}` : base;
+  // Usa slug amigável se disponível, senão usa o UID
+  const url  = slug ? `${base}?loja=${slug}` : (uid ? `${base}?id=${uid}` : base);
   window.open(url, '_blank');
 }
 
@@ -3589,6 +3660,7 @@ const pageConfig = {
 let currentPage = 'dashboard';
 
 function goTo(page) {
+  if (window.innerWidth <= 900) closeSidebar(); // fecha menu no mobile
   currentPage = page;
   document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
@@ -5971,6 +6043,7 @@ async function salvarConfig() {
   db.config.empresa   = document.getElementById('cfg-empresa')?.value  || '';
   db.config.tel       = document.getElementById('cfg-tel')?.value      || '';
   db.config.instagram = document.getElementById('cfg-instagram')?.value|| '';
+  db.config.slug      = document.getElementById('cfg-slug')?.value?.trim().toLowerCase().replace(/[^a-z0-9-]/g,'') || null;
   db.config.endereco  = document.getElementById('cfg-endereco')?.value || '';
   db.config.cidade    = document.getElementById('cfg-cidade')?.value   || '';
   db.config.estado    = document.getElementById('cfg-estado')?.value   || '';
@@ -6015,6 +6088,7 @@ async function salvarConfig() {
     hero_img_url: db.config.hero_img_url || null,
     hero_cor:     db.config.hero_cor     || null,
     hero_tipo:    db.config.hero_tipo    || 'foto',
+    slug:         db.config.slug         || null,
   };
 
   const hdrs = {
@@ -6210,6 +6284,7 @@ async function carregarConfig() {
   setVal('cfg-empresa',  c.empresa);
   setVal('cfg-tel',      c.tel);
   setVal('cfg-instagram',c.instagram);
+  setVal('cfg-slug',     c.slug || '');
   setVal('cfg-endereco', c.endereco);
   setVal('cfg-cidade',   c.cidade);
   setVal('cfg-estado',   c.estado);
