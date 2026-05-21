@@ -1065,8 +1065,11 @@ async function loadPerfil() {
   if (!LOJA_USER_ID) return;
   const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA';
   const headers = { 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}` };
+
+  // Solicita explicitamente todas as colunas necessárias (RLS pode limitar colunas)
+  const cols = 'user_id,nome,empresa,tel,instagram,endereco,cidade,estado,logo_url,hero_img_url,hero_cor,hero_tipo,loja_aberta,horarios,pix_chave,pix_nome,pag_dinheiro,pag_pix,pag_cred,pag_deb,pag_entrega,payment_gateway,slug';
   const res = await fetch(
-    `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/perfis?user_id=eq.${LOJA_USER_ID}&limit=1`,
+    `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/perfis?user_id=eq.${LOJA_USER_ID}&select=${cols}&limit=1`,
     { headers }
   );
   if (!res.ok) return;
@@ -1076,24 +1079,49 @@ async function loadPerfil() {
 
   perfil = data;
   perfil.loja_aberta = data.loja_aberta === true;
-  console.log('🏪 Perfil completo:', JSON.stringify(data));
-  console.log('🏪 loja_aberta valor:', data.loja_aberta, '| perfil.loja_aberta:', perfil.loja_aberta);
+
+  // ── Formas de pagamento ──────────────────────────────────────
+  // Se payment_gateway está ativo (MP ou InfinitePay), substitui o Pix manual pelo gateway
+  const gatewayAtivo = data.payment_gateway === 'mercadopago' || data.payment_gateway === 'infinitepay';
+
   if (data.pag_dinheiro === false) document.querySelector('.pag-opt[data-pag="dinheiro"]')?.remove();
-  if (data.pag_pix      === false) document.querySelector('.pag-opt[data-pag="pix"]')?.remove();
-  if (data.pag_cred     !== true)  document.getElementById('pag-cred')?.remove();
-  if (data.pag_deb      !== true)  document.getElementById('pag-deb')?.remove();
-  if (data.pag_entrega  === false) {
+
+  if (gatewayAtivo) {
+    // Com gateway: remove Pix manual e mostra botão de pagamento online
+    document.querySelector('.pag-opt[data-pag="pix"]')?.remove();
+    // Adiciona opção de pagamento online se não existir
+    const firstOpt = document.querySelector('.pag-opt');
+    if (firstOpt && !document.getElementById('pag-online')) {
+      const btnOnline = document.createElement('button');
+      btnOnline.className = 'pag-opt';
+      btnOnline.id = 'pag-online';
+      btnOnline.dataset.pag = 'online';
+      btnOnline.onclick = function() { setPag(this); };
+      const label = data.payment_gateway === 'mercadopago' ? '💳 Pagar online' : '💳 InfinitePay';
+      btnOnline.textContent = label;
+      firstOpt.parentNode.insertBefore(btnOnline, firstOpt);
+    }
+  } else {
+    if (data.pag_pix === false) document.querySelector('.pag-opt[data-pag="pix"]')?.remove();
+  }
+
+  // Cartão: mostra se pag_cred/pag_deb for true (qualquer valor truthy)
+  if (!data.pag_cred) document.getElementById('pag-cred')?.remove();
+  if (!data.pag_deb)  document.getElementById('pag-deb')?.remove();
+
+  if (data.pag_entrega === false) {
     document.getElementById('opt-entrega')?.remove();
     tipoEntrega = 'retirada';
   }
+
+  // Seleciona primeira opção disponível
   const firstPag = document.querySelector('.pag-opt');
   if (firstPag) {
     document.querySelectorAll('.pag-opt').forEach(b => b.classList.remove('active'));
     firstPag.classList.add('active');
     pagamento = firstPag.dataset.pag;
   }
-  perfil.loja_aberta = data.loja_aberta === true;
-  console.log('🏪 loja_aberta:', data.loja_aberta, '→', perfil.loja_aberta);
+
   if (data.horarios) {
     try {
       const h = typeof data.horarios === 'string' ? JSON.parse(data.horarios) : data.horarios;
@@ -1589,7 +1617,20 @@ function renderPagPanel() {
   const el    = document.getElementById('pag-info-wrap');
   const total = cart.reduce((s,c) => s + c.qty*c.preco, 0);
 
-  if (pagamento === 'pix') {
+  if (pagamento === 'online') {
+    // Pagamento via gateway (Mercado Pago ou InfinitePay)
+    const gw = perfil.payment_gateway;
+    const label = gw === 'mercadopago' ? 'Mercado Pago' : 'InfinitePay';
+    el.innerHTML = `
+      <div class="pag-panel pix" style="background:#e8f5e9;border-color:#a5d6a7">
+        <div class="pag-panel-title" style="color:#1b5e20">💳 Pagamento online — ${label}</div>
+        <div style="font-size:.82rem;color:#2e7d32;line-height:1.7">
+          ✓ Você será redirecionado para a página de pagamento seguro ao confirmar o pedido.<br>
+          <strong>Valor: ${formatMoney(total)}</strong>
+        </div>
+      </div>`;
+
+  } else if (pagamento === 'pix') {
     const chave = PIX_CHAVE || perfil.pix_chave || '(chave Pix não configurada)';
     const nome  = PIX_NOME  || perfil.pix_nome  || '';
     el.innerHTML = `
