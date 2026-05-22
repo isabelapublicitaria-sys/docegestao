@@ -3633,13 +3633,13 @@ function enterApp(user) {
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').classList.add('visible');
   // Mostra botão hamburger no mobile após login
-  const _hambBtn = document.getElementById('btn-hamburger');
-  if (_hambBtn) {
-    _hambBtn.classList.add('active');
-    // Força repaint no Safari iOS
-    _hambBtn.style.display = '';
-    void _hambBtn.offsetHeight;
-  }
+  // Mostra hamburger — compatível com Safari iOS
+  setTimeout(() => {
+    const _hambBtn = document.getElementById('btn-hamburger');
+    if (_hambBtn) {
+      _hambBtn.style.cssText = 'display:-webkit-flex!important;display:flex!important;position:fixed;top:10px;left:10px;z-index:1060;width:44px;height:44px;background:linear-gradient(135deg,#D4587A,#6B2D5E);border:none;border-radius:12px;-webkit-flex-direction:column;flex-direction:column;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;gap:5px;box-shadow:0 4px 14px rgba(200,100,120,0.35);cursor:pointer;-webkit-appearance:none;touch-action:manipulation;';
+    }
+  }, 100);
   document.getElementById('user-name-display').textContent = user.name;
   document.getElementById('user-email-display').textContent = user.email;
   document.getElementById('user-avatar').textContent = user.name.charAt(0).toUpperCase();
