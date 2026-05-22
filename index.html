@@ -3767,11 +3767,28 @@ function goTo(page) {
   renderPage(page);
 }
 
+function abrirNovoInsumoModal() {
+  // Limpa todos os campos antes de abrir
+  const campos = ['insumo-id','insumo-nome','insumo-unidade','insumo-quantidade',
+    'insumo-preco','insumo-estoque-min','insumo-fornecedor','insumo-obs'];
+  campos.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  // Reset selects
+  const cat = document.getElementById('insumo-categoria');
+  if (cat) cat.selectedIndex = 0;
+  // Reset título
+  const title = document.getElementById('modal-insumo-title');
+  if (title) title.textContent = 'Novo Insumo';
+  openModal('modal-insumo');
+}
+
 function topbarAction() {
   const actions = {
     pdv:      () => abrirNovoProdutoModal(),
     estoque:  () => abrirNovoProdutoModal(),
-    insumos:  () => openModal('modal-insumo'),
+    insumos:  () => abrirNovoInsumoModal(),
     receitas: () => openModalReceita(),
     clientes: () => openModal('modal-cliente'),
   };
@@ -4718,80 +4735,103 @@ function gerarCupomHTML(v) {
   const tel     = db.config.tel     || '';
   const end     = db.config.endereco || db.config.cidade || '';
 
-  const linhaItens = itens.map(i =>
-    `<tr>
-      <td style="padding:3px 0">${i.qty}x ${i.nome}</td>
-      <td style="text-align:right;padding:3px 0">${formatMoney(i.qty * (i.preco||0))}</td>
-    </tr>`
-  ).join('');
+  const linhaItens = itens.map(i => {
+    const subtotal = formatMoney(i.qty * (i.preco||0));
+    return `<tr>
+      <td>${i.qty}x ${i.nome}</td>
+      <td class="right">${subtotal}</td>
+    </tr>`;
+  }).join('');
+
+  const logoUrl = db.config.logo_url || '';
+  const cidade  = db.config.cidade  || '';
+  const estado  = db.config.estado  || '';
+  const endConf = [db.config.endereco, cidade, estado].filter(Boolean).join(' - ');
 
   return `<!DOCTYPE html><html><head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Cupom #${String(v.id).slice(-6)}</title>
     <style>
       * { margin:0; padding:0; box-sizing:border-box; }
-      body { font-family: 'Courier New', monospace; font-size: 12px; width: 80mm; padding: 8px; color: #000; }
-      .center { text-align: center; }
-      .bold { font-weight: bold; }
-      .linha { border-top: 1px dashed #000; margin: 6px 0; }
-      table { width: 100%; border-collapse: collapse; }
-      .total-row td { font-weight: bold; font-size: 15px; padding-top: 6px; }
-      .footer { font-size: 10px; text-align: center; margin-top: 4px; }
-      @media print {
-        body { width: 80mm; }
-        @page { margin: 0; size: 80mm auto; }
-      }
+      html, body { width:58mm; max-width:58mm; font-family:'Courier New',Courier,monospace; font-size:10pt; color:#000; background:#fff; }
+      body { padding:3mm 2mm; }
+      .linha  { border:none; border-top:1px dashed #000; margin:2.5mm 0; }
+      .logo-wrap { text-align:center; margin-bottom:2mm; }
+      .logo-img { width:22mm; height:22mm; border-radius:50%; object-fit:cover; }
+      .logo-placeholder { width:22mm; height:22mm; border-radius:50%; background:#f0e4ec; display:inline-flex; align-items:center; justify-content:center; font-size:7pt; color:#6B2D5E; font-weight:700; }
+      .empresa { font-size:11pt; font-weight:700; text-align:center; margin-bottom:0.5mm; }
+      .sub     { font-size:8pt; text-align:center; color:#333; line-height:1.5; }
+      .gestta  { text-align:center; margin-top:1.5mm; }
+      .pedido  { font-size:11pt; font-weight:700; text-align:center; }
+      .data    { font-size:8pt; text-align:center; color:#444; }
+      .bloco   { font-size:9pt; line-height:1.8; }
+      table    { width:100%; border-collapse:collapse; }
+      td       { font-size:9pt; vertical-align:top; padding:0.8mm 0; }
+      td.r     { text-align:right; white-space:nowrap; padding-left:2mm; }
+      .tot td  { font-size:12pt; font-weight:700; padding-top:2mm; }
+      .pag     { font-size:8pt; margin-top:1mm; }
+      .obs     { font-size:8pt; }
+      .footer  { font-size:7pt; text-align:center; margin-top:1mm; color:#555; }
+      @page    { size:58mm auto; margin:0; }
+      @media print { html,body { width:58mm; } @page { size:58mm auto; margin:0; } }
     </style>
   </head><body>
 
-    <!-- 1. Nome da confeitaria, telefone e endereço -->
-    <div class="center bold" style="font-size:15px">${empresa}</div>
-    ${tel ? `<div class="center" style="font-size:10px">Tel: ${tel}</div>` : ''}
-    ${end ? `<div class="center" style="font-size:10px">${end}</div>` : ''}
+    <div class="logo-wrap">
+      ${logoUrl
+        ? `<img class="logo-img" src="${logoUrl}" />`
+        : `<div class="logo-placeholder">LOGO</div>`}
+    </div>
 
-    <div class="linha"></div>
+    <div class="empresa">${empresa}</div>
+    ${tel ? `<div class="sub">Tel: ${tel}</div>` : ''}
+    ${endConf ? `<div class="sub">${endConf}</div>` : ''}
 
-    <!-- 2. Número do pedido, data e hora -->
-    <div class="center bold" style="font-size:13px">PEDIDO #${String(v.id).slice(-6)}</div>
-    <div class="center" style="font-size:11px">${dataStr} às ${horaStr}</div>
-
-    <div class="linha"></div>
-
-    <!-- 3. Nome, WhatsApp e endereço do cliente + tipo -->
-    <div style="font-size:11px;line-height:1.8">
-      ${v.cliente_nome ? `<div>👤 <b>${v.cliente_nome}</b></div>` : ''}
-      ${v.cliente_tel  ? `<div>📱 ${v.cliente_tel}</div>` : ''}
-      <div style="font-weight:bold;margin-top:3px">${v.tipo_entrega === 'entrega' ? '🛵 ENTREGA' : '🏠 RETIRADA NO LOCAL'}</div>
-      ${(v.endereco_entrega || v.endereco) ? `<div>📍 ${v.endereco_entrega || v.endereco}</div>` : ''}
+    <div class="gestta">
+      <svg width="44" height="14" viewBox="0 0 90 28" xmlns="http://www.w3.org/2000/svg">
+        <defs><linearGradient id="gc" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#6B2D5E"/>
+          <stop offset="100%" style="stop-color:#D4587A"/>
+        </linearGradient></defs>
+        <text x="2" y="22" font-family="Georgia,serif" font-size="22" font-style="italic" font-weight="700" fill="url(#gc)">Gestta</text>
+      </svg>
     </div>
 
     <div class="linha"></div>
 
-    <!-- 4. Itens -->
+    <div class="pedido">PEDIDO #${String(v.id).slice(-6)}</div>
+    <div class="data">${dataStr} &bull; ${horaStr}</div>
+
+    <div class="linha"></div>
+
+    <div class="bloco">
+      ${v.cliente_nome ? `<div><b>${v.cliente_nome}</b></div>` : ''}
+      ${v.cliente_tel  ? `<div>Tel: ${v.cliente_tel}</div>` : ''}
+      <div><b>${v.tipo_entrega === 'entrega' ? 'ENTREGA' : 'RETIRADA NO LOCAL'}</b></div>
+      ${(v.endereco_entrega||v.endereco) ? `<div>End: ${v.endereco_entrega||v.endereco}</div>` : ''}
+    </div>
+
+    <div class="linha"></div>
+
     <table>${linhaItens}</table>
 
     <div class="linha"></div>
 
-    <!-- 5. Total -->
     <table>
-      <tr class="total-row">
+      <tr class="tot">
         <td>TOTAL</td>
-        <td style="text-align:right">${formatMoney(v.total)}</td>
+        <td class="r">${formatMoney(v.total)}</td>
       </tr>
     </table>
 
-    <!-- 6. Forma de pagamento -->
-    ${v.pagamento || v.payment_method ? `<div style="font-size:11px;margin-top:4px">💳 Pagamento: ${v.pagamento || v.payment_method}</div>` : ''}
-
-    <!-- 7. Observações -->
-    ${v.obs ? `<div class="linha"></div><div style="font-size:11px"><b>Obs:</b> ${v.obs}</div>` : ''}
+    ${v.pagamento||v.payment_method ? `<div class="pag">Pgto: ${v.pagamento||v.payment_method}</div>` : ''}
+    ${v.obs ? `<div class="linha"></div><div class="obs">Obs: ${v.obs}</div>` : ''}
 
     <div class="linha"></div>
-
-    <!-- 8. Rodapé -->
     <div class="footer">gesttaconfeitaria.com.br</div>
-    <div class="footer">Obrigada pela preferência! 🍰</div>
-    <br><br><br>
+    <div class="footer">Obrigada pela preferencia!</div>
+    <br><br>
   </body></html>`;
 }
 
