@@ -207,11 +207,7 @@ body { font-family: 'Comfortaa', sans-serif; background: var(--cream); color: va
 
   <!-- HERO -->
   <section class="hero">
-    <div class="hero-eyebrow" style="margin-bottom:8px">
-  <svg width="100%" height="40" viewBox="0 0 110 34" xmlns="http://www.w3.org/2000/svg" style="max-width:110px">
-    <text x="2" y="27" font-family="Georgia,serif" font-size="28" font-style="italic" font-weight="700" fill="white" letter-spacing="-0.5" opacity="0.95">Gestta</text>
-  </svg>
-</div>
+    <div class="hero-eyebrow">🍰 Gestta</div>
     <h1>Gerencie sua confeitaria<br>com <em>inteligência</em></h1>
     <p>Estoque, cardápio digital, vendas, clientes e precificação — tudo em um só lugar, feito para confeiteiros.</p>
     <div class="hero-badges">
@@ -325,6 +321,21 @@ body { font-family: 'Comfortaa', sans-serif; background: var(--cream); color: va
             <input type="password" id="reg-pass2" placeholder="Repita a senha" />
           </div>
 
+          <!-- Campo cupom (só para planos pagos) -->
+          <div id="cupom-wrap" style="display:none;margin-bottom:12px">
+            <label style="font-size:.78rem;color:#7a5068;font-weight:600;display:block;margin-bottom:6px">Cupom de desconto (opcional)</label>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="cupom-input" placeholder="Ex: NANDA15"
+                style="flex:1;padding:10px 14px;border:2px solid #ecdcbe;border-radius:10px;font-family:'Comfortaa',sans-serif;font-size:.85rem;text-transform:uppercase;outline:none"
+                oninput="this.value=this.value.toUpperCase()" />
+              <button type="button" onclick="aplicarCupom()"
+                style="padding:10px 16px;background:#3d2b3d;color:white;border:none;border-radius:10px;font-family:'Comfortaa',sans-serif;font-size:.82rem;font-weight:600;cursor:pointer;white-space:nowrap">
+                Aplicar
+              </button>
+            </div>
+            <div id="cupom-msg" style="font-size:.75rem;margin-top:4px"></div>
+          </div>
+
           <div id="form-msg" class="form-msg"></div>
 
           <button class="btn-submit" id="btn-cadastrar" onclick="doCadastro()">
@@ -360,35 +371,82 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// ── IDs dos planos no Mercado Pago ──────────────────────────────
+const MP_PLANOS = {
+  basic: '2af5063fb7f64375a0dd89d233c0285b',
+  pro:   '2423cd9709d94ba08f2e2da6e6f74449',
+};
+
+// ── Cupons de desconto ─────────────────────────────────────────
+// 15% de desconto por 3 meses
+const CUPONS = {
+  'NANDA15': { desconto: 15, meses: 3, nome: 'Nanda' },
+  'TALITA15': { desconto: 15, meses: 3, nome: 'Talita' },
+};
+
 const PLANOS = {
-  gratis: { nome: 'Grátis',  preco: 'R$ 0/mês',  icon: '🆓' },
-  basic:  { nome: 'Basic',   preco: 'R$ 47/mês', icon: '🔵' },
-  pro:    { nome: 'Pro',     preco: 'R$ 97/mês', icon: '⭐' },
+  gratis: { nome: 'Grátis',  preco: 'R$ 0/mês',  precoNum: 0,  icon: '🆓' },
+  basic:  { nome: 'Basic',   preco: 'R$ 47/mês', precoNum: 47, icon: '🔵' },
+  pro:    { nome: 'Pro',     preco: 'R$ 97/mês', precoNum: 97, icon: '⭐' },
 };
 
 let planoSelecionado = 'gratis';
+let cupomAtivo = null;
 
 function selecionarPlano(plano) {
   planoSelecionado = plano;
-  // Atualiza cards
   document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
   document.getElementById('plan-' + plano).classList.add('selected');
-  // Atualiza info no form
-  const p = PLANOS[plano];
+  atualizarInfoPlano();
+  document.querySelector('.form-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function atualizarInfoPlano() {
+  const p = PLANOS[planoSelecionado];
+  let precoFinal = p.precoNum;
+  let precoHtml  = p.preco;
+
+  if (cupomAtivo && planoSelecionado !== 'gratis') {
+    const desc = p.precoNum * (cupomAtivo.desconto / 100);
+    precoFinal = p.precoNum - desc;
+    precoHtml  = `<s style="color:#999;font-size:.85em">${p.preco}</s> <span style="color:#2e7d32;font-weight:700">R$ ${precoFinal.toFixed(0)}/mês</span> <span style="font-size:.7em;color:#2e7d32">(${cupomAtivo.desconto}% off por ${cupomAtivo.meses} meses)</span>`;
+  }
+
   document.getElementById('plan-info').innerHTML = `
     <div class="psi-icon">${p.icon}</div>
     <div>
       <div class="psi-name">Plano ${p.nome}</div>
-      <div class="psi-price">${p.preco}</div>
+      <div class="psi-price">${precoHtml}</div>
     </div>
     <span class="psi-change" onclick="scrollToPlans()">Trocar</span>`;
   document.getElementById('form-sub').textContent = `Plano ${p.nome} selecionado`;
-  // Scroll para o form
-  document.querySelector('.form-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Mostra campo cupom para planos pagos
+  const cupomWrap = document.getElementById('cupom-wrap');
+  if (cupomWrap) cupomWrap.style.display = planoSelecionado === 'gratis' ? 'none' : 'block';
 }
 
 function scrollToPlans() {
   document.getElementById('plans-grid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function aplicarCupom() {
+  const codigo = (document.getElementById('cupom-input')?.value || '').trim().toUpperCase();
+  const msgEl  = document.getElementById('cupom-msg');
+
+  if (!codigo) { msgEl.textContent = 'Digite um cupom'; msgEl.style.color = '#c0392b'; return; }
+
+  const cupom = CUPONS[codigo];
+  if (!cupom) {
+    msgEl.textContent = 'Cupom inválido';
+    msgEl.style.color = '#c0392b';
+    cupomAtivo = null;
+  } else {
+    cupomAtivo = cupom;
+    msgEl.textContent = `✅ Cupom de ${cupom.nome} aplicado! ${cupom.desconto}% off por ${cupom.meses} meses`;
+    msgEl.style.color = '#2e7d32';
+    atualizarInfoPlano();
+  }
 }
 
 async function doCadastro() {
@@ -398,10 +456,7 @@ async function doCadastro() {
   const email   = document.getElementById('reg-email').value.trim();
   const pass    = document.getElementById('reg-pass').value;
   const pass2   = document.getElementById('reg-pass2').value;
-  const msgEl   = document.getElementById('form-msg');
 
-  // Validações
-  msgEl.className = 'form-msg';
   if (!empresa) return showMsg('Informe o nome da confeitaria', 'err');
   if (!nome)    return showMsg('Informe seu nome', 'err');
   if (!tel)     return showMsg('Informe seu WhatsApp', 'err');
@@ -413,6 +468,16 @@ async function doCadastro() {
   btn.disabled = true;
   btn.textContent = 'Criando conta...';
 
+  // Salva lead antes de tudo (para rastrear tentativas)
+  const cupomCodigo = document.getElementById('cupom-input')?.value?.trim().toUpperCase() || null;
+  sb.from('cadastro_leads').insert({
+    nome, empresa, email, tel,
+    plano: planoSelecionado,
+    cupom: cupomCodigo,
+    status: 'pendente',
+    criado_em: new Date().toISOString(),
+  }).then(({ error }) => { if (error) console.warn('lead:', error.message); });
+
   try {
     // 1. Cria usuário no Supabase Auth
     const { data, error } = await sb.auth.signUp({ email, password: pass });
@@ -422,84 +487,94 @@ async function doCadastro() {
     const userJWT = data.session?.access_token || SUPABASE_KEY;
     if (!uid) throw new Error('Erro ao criar usuário');
 
-    // 2. Cria perfil na tabela perfis (usa JWT do usuário recém-criado)
-    const resPerfil = await fetch(
-      `${SUPABASE_URL}/rest/v1/perfis`,
-      {
-        method: 'POST',
-        headers: {
-          'apikey':       SUPABASE_KEY,
-          'Authorization':`Bearer ${userJWT}`,
-          'Content-Type': 'application/json',
-          'Prefer':       'return=minimal',
-        },
-        body: JSON.stringify({
-          user_id:      uid,
-          nome,
-          empresa,
-          tel,
-          email,
-          loja_aberta:  false,
-          pag_dinheiro: true,
-          pag_pix:      true,
-          pag_cred:     false,
-          pag_deb:      false,
-          pag_entrega:  true,
-        }),
-      }
-    );
-    if (!resPerfil.ok) {
-      const errTxt = await resPerfil.text();
-      console.warn('Erro ao criar perfil:', errTxt);
-    } else {
-      console.log('✅ Perfil criado para:', uid);
+    // Salva dados temporários para recuperar após pagamento
+    sessionStorage.setItem('gestta_pending', JSON.stringify({
+      uid, nome, empresa, tel, email, userJWT,
+      plano: planoSelecionado,
+      cupom: cupomAtivo ? document.getElementById('cupom-input')?.value?.trim().toUpperCase() : null,
+    }));
+
+    // 2. Cria perfil
+    await fetch(`${SUPABASE_URL}/rest/v1/perfis`, {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${userJWT}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ user_id: uid, nome, empresa, tel, email, loja_aberta: false, pag_dinheiro: true, pag_pix: true, pag_cred: false, pag_deb: false, pag_entrega: true }),
+    });
+
+    // 3. Se plano grátis — registra e mostra sucesso direto
+    if (planoSelecionado === 'gratis') {
+      await registrarPlano(uid, userJWT, 'gratis', null);
+      mostrarSucesso(nome, 'gratis');
+      return;
     }
 
-    // 3. Registra plano no admin_planos
-    const venc = new Date();
-    if (planoSelecionado !== 'gratis') {
-      venc.setDate(venc.getDate() + 7);
-    } else {
-      venc.setFullYear(venc.getFullYear() + 10);
-    }
-    const resPlano = await fetch(
-      `${SUPABASE_URL}/rest/v1/admin_planos`,
-      {
-        method: 'POST',
-        headers: {
-          'apikey':       SUPABASE_KEY,
-          'Authorization':`Bearer ${userJWT}`,
-          'Content-Type': 'application/json',
-          'Prefer':       'return=minimal',
-        },
-        body: JSON.stringify({
-          user_id:    uid,
-          plano:      planoSelecionado,
-          vencimento: venc.toISOString().slice(0,10),
-        }),
-      }
-    );
-    if (!resPlano.ok) console.warn('Erro ao criar plano:', await resPlano.text());
-    else console.log('✅ Plano criado:', planoSelecionado);
+    // 4. Plano pago — redireciona para o MP com dados na URL de retorno
+    const mpPlanId = MP_PLANOS[planoSelecionado];
+    const retorno  = encodeURIComponent(`https://gesttaconfeitaria.com.br/cadastro.html?pagamento=sucesso&uid=${uid}`);
+    const cupomCod = cupomAtivo ? document.getElementById('cupom-input')?.value?.trim().toUpperCase() : '';
 
-    // Sucesso!
-    document.getElementById('main-screen').style.display = 'none';
-    const successMsg = planoSelecionado === 'gratis'
-      ? `Bem-vinda, ${nome}! Sua conta foi criada no plano Grátis. Acesse o sistema e comece a configurar sua confeitaria.`
-      : `Bem-vinda, ${nome}! Sua conta foi criada com 7 dias de trial do plano ${PLANOS[planoSelecionado].nome}. Entre em contato para confirmar seu plano.`;
-    document.getElementById('success-msg').textContent = successMsg;
-    document.getElementById('success-screen').classList.add('show');
+    // Registra plano como "pendente" até o MP confirmar
+    await registrarPlano(uid, userJWT, planoSelecionado, 'pendente');
+
+    // Redireciona para checkout do MP
+    window.location.href = `https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=${mpPlanId}&external_reference=${uid}&back_url=${retorno}`;
 
   } catch(e) {
     let msg = e.message;
     if (msg.includes('already registered')) msg = 'Este e-mail já está cadastrado. Tente fazer login.';
     if (msg.includes('invalid')) msg = 'E-mail inválido.';
     showMsg(msg, 'err');
-  } finally {
     btn.disabled = false;
     btn.innerHTML = '🍰 Criar minha conta';
   }
 }
+
+async function registrarPlano(uid, jwt, plano, status) {
+  const venc = new Date();
+  if (plano === 'gratis') {
+    venc.setFullYear(venc.getFullYear() + 10);
+  } else {
+    venc.setMonth(venc.getMonth() + 1);
+  }
+  await fetch(`${SUPABASE_URL}/rest/v1/admin_planos`, {
+    method: 'POST',
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${jwt}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+    body: JSON.stringify({ user_id: uid, plano, vencimento: venc.toISOString().slice(0,10), status: status || 'ativo' }),
+  });
+}
+
+function mostrarSucesso(nome, plano, email) {
+  document.getElementById('main-screen').style.display = 'none';
+  const msg = plano === 'gratis'
+    ? `Bem-vinda, ${nome}! Sua conta foi criada no plano Grátis. Acesse o sistema e comece agora!`
+    : `Bem-vinda, ${nome}! Pagamento confirmado. Sua conta está ativa no plano ${PLANOS[plano]?.nome}!`;
+  document.getElementById('success-msg').textContent = msg;
+  document.getElementById('success-screen').classList.add('show');
+  // Atualiza lead para pago
+  if (email) {
+    sb.from('cadastro_leads')
+      .update({ status: 'pago', atualizado_em: new Date().toISOString() })
+      .eq('email', email)
+      .then(() => {}).catch(() => {});
+  }
+}
+
+// Verifica retorno do MP após pagamento
+window.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('pagamento') === 'sucesso') {
+    const pending = JSON.parse(sessionStorage.getItem('gestta_pending') || '{}');
+    if (pending.uid) {
+      // Ativa o plano
+      registrarPlano(pending.uid, pending.userJWT || SUPABASE_KEY, pending.plano, 'ativo')
+        .then(() => mostrarSucesso(pending.nome || 'Confeiteira', pending.plano))
+        .catch(() => mostrarSucesso('Confeiteira', pending.plano));
+      sessionStorage.removeItem('gestta_pending');
+    } else {
+      mostrarSucesso('Confeiteira', 'pro');
+    }
+  }
+});
 
 function showMsg(txt, tipo) {
   const el = document.getElementById('form-msg');

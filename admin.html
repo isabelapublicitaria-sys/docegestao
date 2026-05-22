@@ -380,6 +380,12 @@ tbody tr:last-child td { border-bottom:none; }
       <button class="nav-item2" onclick="goAdmin('banco')">
         <span class="ni-icon">🗄️</span> Banco de Dados
       </button>
+      <button class="nav-item2" onclick="goAdmin('alertas')" id="nav-alertas">
+        <span class="ni-icon">🔔</span> Alertas <span id="badge-alertas" style="display:none;background:#c0392b;color:white;border-radius:99px;font-size:.65rem;padding:1px 6px;margin-left:4px">0</span>
+      </button>
+      <button class="nav-item2" onclick="goAdmin('leads')">
+        <span class="ni-icon">🎯</span> Leads
+      </button>
       <button class="nav-item2" onclick="goAdmin('supabase')">
         <span class="ni-icon">⚙️</span> Supabase
       </button>
@@ -506,6 +512,57 @@ tbody tr:last-child td { border-bottom:none; }
         </div>
       </div>
     </div>
+    <!-- ALERTAS -->
+    <div class="page2" id="page-alertas">
+      <div class="card2">
+        <div class="toolbar2" style="padding:16px 20px;border-bottom:1px solid var(--cream2)">
+          <div style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--choco)">🔔 Alertas das Confeiteiras</div>
+          <select class="sel2" id="alerta-tipo-filter" onchange="renderAlertas()">
+            <option value="">Todos os tipos</option>
+            <option value="tolerancia">⚠️ Pagamento pendente</option>
+            <option value="cancelado">❌ Cancelado</option>
+            <option value="vencido">⏰ Vencido</option>
+            <option value="sistema">🔧 Sistema</option>
+          </select>
+          <select class="sel2" id="alerta-lido-filter" onchange="renderAlertas()">
+            <option value="nao">Não resolvidos</option>
+            <option value="">Todos</option>
+            <option value="sim">Resolvidos</option>
+          </select>
+          <button class="btn-sm2 ghost" onclick="carregarAlertas()">🔄 Atualizar</button>
+        </div>
+        <div id="alertas-lista" style="padding:0">
+          <div class="loading2"><div class="spin"></div>Carregando alertas...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LEADS -->
+    <div class="page2" id="page-leads">
+      <div class="card2">
+        <div class="toolbar2" style="padding:16px 20px;border-bottom:1px solid var(--cream2)">
+          <div style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--choco)">🎯 Tentativas de Cadastro</div>
+          <input class="search2" id="lead-search" placeholder="Buscar por nome, e-mail..." oninput="renderLeads()" />
+          <select class="sel2" id="lead-plano-filter" onchange="renderLeads()">
+            <option value="">Todos os planos</option>
+            <option value="gratis">🆓 Grátis</option>
+            <option value="basic">🔵 Basic</option>
+            <option value="pro">⭐ Pro</option>
+          </select>
+          <select class="sel2" id="lead-status-filter" onchange="renderLeads()">
+            <option value="">Todos os status</option>
+            <option value="pendente">⏳ Pendente</option>
+            <option value="pago">✅ Pago</option>
+            <option value="abandonado">❌ Abandonado</option>
+          </select>
+          <button class="btn-sm2 ghost" onclick="carregarLeads()">🔄 Atualizar</button>
+        </div>
+        <div id="leads-lista" style="padding:0">
+          <div class="loading2"><div class="spin"></div>Carregando leads...</div>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -668,6 +725,8 @@ const PAGE_TITLES = {
 
 function goAdmin(page) {
   document.querySelectorAll('.page2').forEach(p => p.classList.remove('active'));
+  if (page === 'alertas') carregarAlertas();
+  if (page === 'leads')   carregarLeads();
   document.querySelectorAll('.nav-item2').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
   document.querySelectorAll('.nav-item2').forEach(n => {
@@ -701,9 +760,158 @@ async function recarregarDados() {
     // Atualiza stats
     renderStats();
     toast2(`${allPerfis.length} cliente(s) carregados`, 'ok');
+    // Carrega alertas em background para mostrar badge
+    carregarAlertas().catch(() => {});
   } catch(e) {
     toast2('Erro ao carregar dados: ' + e.message, 'err');
   }
+}
+
+// ════════════════════════════════════════
+// ALERTAS
+// ════════════════════════════════════════
+let allAlertas = [];
+
+async function carregarAlertas() {
+  try {
+    const { data, error } = await sb.from('admin_alertas').select('*').order('criado_em', { ascending: false });
+    if (error) throw error;
+    allAlertas = data || [];
+    // Atualiza badge
+    const naoLidos = allAlertas.filter(a => !a.lido).length;
+    const badge = document.getElementById('badge-alertas');
+    if (badge) {
+      badge.textContent = naoLidos;
+      badge.style.display = naoLidos > 0 ? 'inline' : 'none';
+    }
+    renderAlertas();
+  } catch(e) {
+    document.getElementById('alertas-lista').innerHTML = `<div style="padding:24px;color:var(--text3);text-align:center">Nenhum alerta encontrado</div>`;
+  }
+}
+
+function renderAlertas() {
+  const tipoF = document.getElementById('alerta-tipo-filter')?.value || '';
+  const lidoF = document.getElementById('alerta-lido-filter')?.value || 'nao';
+
+  let lista = [...allAlertas];
+  if (tipoF)         lista = lista.filter(a => a.tipo === tipoF);
+  if (lidoF === 'nao') lista = lista.filter(a => !a.lido);
+  if (lidoF === 'sim') lista = lista.filter(a => a.lido);
+
+  const el = document.getElementById('alertas-lista');
+  if (!lista.length) {
+    el.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text3)">✅ Nenhum alerta pendente!</div>`;
+    return;
+  }
+
+  const tipoIcon = { tolerancia:'⚠️', cancelado:'❌', vencido:'⏰', sistema:'🔧' };
+  const tipoCor  = { tolerancia:'#e65100', cancelado:'#c0392b', vencido:'#7b341e', sistema:'#1a5276' };
+
+  el.innerHTML = lista.map(a => {
+    const data = new Date(a.criado_em).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    const icon = tipoIcon[a.tipo] || '🔔';
+    const cor  = tipoCor[a.tipo]  || '#555';
+    return `<div style="display:flex;align-items:flex-start;gap:14px;padding:14px 20px;border-bottom:1px solid var(--cream2);${a.lido?'opacity:.5':''}">
+      <div style="font-size:1.4rem;margin-top:2px">${icon}</div>
+      <div style="flex:1">
+        <div style="font-size:.85rem;font-weight:600;color:${cor}">${a.mensagem || '—'}</div>
+        <div style="font-size:.72rem;color:var(--text3);margin-top:3px">${data} · Plano: ${a.plano || '—'}</div>
+      </div>
+      ${!a.lido ? `<button class="btn-sm2 ghost" onclick="resolverAlerta('${a.id}')" style="white-space:nowrap;font-size:.72rem">✓ Resolver</button>` : `<span style="font-size:.72rem;color:var(--text3)">Resolvido</span>`}
+    </div>`;
+  }).join('');
+}
+
+async function resolverAlerta(id) {
+  const { error } = await sb.from('admin_alertas').update({ lido: true }).eq('id', id);
+  if (!error) {
+    const a = allAlertas.find(x => x.id === id);
+    if (a) a.lido = true;
+    renderAlertas();
+    // Atualiza badge
+    const naoLidos = allAlertas.filter(x => !x.lido).length;
+    const badge = document.getElementById('badge-alertas');
+    if (badge) { badge.textContent = naoLidos; badge.style.display = naoLidos > 0 ? 'inline' : 'none'; }
+    toast2('Alerta resolvido!', 'ok');
+  }
+}
+
+// ════════════════════════════════════════
+// LEADS
+// ════════════════════════════════════════
+let allLeads = [];
+
+async function carregarLeads() {
+  try {
+    const { data, error } = await sb.from('cadastro_leads').select('*').order('criado_em', { ascending: false });
+    if (error) throw error;
+    allLeads = data || [];
+    renderLeads();
+  } catch(e) {
+    document.getElementById('leads-lista').innerHTML = `<div style="padding:24px;color:var(--text3);text-align:center">Tabela cadastro_leads não encontrada</div>`;
+  }
+}
+
+function renderLeads() {
+  const search  = (document.getElementById('lead-search')?.value || '').toLowerCase();
+  const planoF  = document.getElementById('lead-plano-filter')?.value  || '';
+  const statusF = document.getElementById('lead-status-filter')?.value || '';
+
+  let lista = [...allLeads];
+  if (search)  lista = lista.filter(l => (l.nome+l.email+l.empresa).toLowerCase().includes(search));
+  if (planoF)  lista = lista.filter(l => l.plano === planoF);
+  if (statusF) lista = lista.filter(l => l.status === statusF);
+
+  const el = document.getElementById('leads-lista');
+  if (!lista.length) {
+    el.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text3)">Nenhum lead encontrado</div>`;
+    return;
+  }
+
+  const statusIcon  = { pendente:'⏳', pago:'✅', abandonado:'❌' };
+  const statusCor   = { pendente:'#e65100', pago:'#2e7d32', abandonado:'#c0392b' };
+  const planoIcon   = { gratis:'🆓', basic:'🔵', pro:'⭐' };
+
+  el.innerHTML = `<table style="width:100%;border-collapse:collapse">
+    <thead>
+      <tr style="background:var(--cream2);font-size:.72rem;color:var(--text3)">
+        <th style="padding:10px 16px;text-align:left">NOME / EMPRESA</th>
+        <th style="padding:10px 16px;text-align:left">E-MAIL</th>
+        <th style="padding:10px 16px;text-align:center">PLANO</th>
+        <th style="padding:10px 16px;text-align:center">CUPOM</th>
+        <th style="padding:10px 16px;text-align:center">STATUS</th>
+        <th style="padding:10px 16px;text-align:center">DATA</th>
+        <th style="padding:10px 16px;text-align:center">AÇÃO</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${lista.map(l => {
+        const data = new Date(l.criado_em).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
+        const hora = new Date(l.criado_em).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+        const telLimpo = (l.tel||'').replace(/\D/g,'');
+        const msgWpp = encodeURIComponent(`Olá ${l.nome}! Vi que você tentou se cadastrar no Gestta no plano ${l.plano}. Posso te ajudar? 😊`);
+        return `<tr style="border-bottom:1px solid var(--cream2);font-size:.82rem">
+          <td style="padding:12px 16px">
+            <div style="font-weight:600;color:var(--choco)">${l.nome || '—'}</div>
+            <div style="font-size:.72rem;color:var(--text3)">${l.empresa || ''}</div>
+          </td>
+          <td style="padding:12px 16px;color:var(--text2)">${l.email || '—'}</td>
+          <td style="padding:12px 16px;text-align:center">${planoIcon[l.plano] || '—'} ${l.plano || '—'}</td>
+          <td style="padding:12px 16px;text-align:center;font-size:.72rem;color:var(--text3)">${l.cupom || '—'}</td>
+          <td style="padding:12px 16px;text-align:center">
+            <span style="background:${statusCor[l.status] || '#888'}20;color:${statusCor[l.status] || '#888'};border-radius:99px;padding:3px 10px;font-size:.72rem;font-weight:600">
+              ${statusIcon[l.status] || '—'} ${l.status || '—'}
+            </span>
+          </td>
+          <td style="padding:12px 16px;text-align:center;font-size:.75rem;color:var(--text3)">${data}<br>${hora}</td>
+          <td style="padding:12px 16px;text-align:center">
+            ${telLimpo ? `<a href="https://wa.me/55${telLimpo}?text=${msgWpp}" target="_blank" class="btn-sm2 prim" style="text-decoration:none;font-size:.72rem;padding:5px 10px">💬 WhatsApp</a>` : '—'}
+          </td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+  </table>`;
 }
 
 // ════════════════════════════════════════
