@@ -185,6 +185,9 @@
   ═══════════════════════════════════════ */
   #app { display: none; }
   #app.visible { display: flex; height: 100vh; overflow: hidden; }
+  #btn-hamburger { display: none !important; }
+  #app.visible ~ * #btn-hamburger,
+  body.logged-in #btn-hamburger { display: flex !important; }
 
   /* SIDEBAR */
   .sidebar {
@@ -828,9 +831,23 @@
     background: linear-gradient(135deg, var(--rose), var(--rose-dk));
     border: none; border-radius: 12px;
     width: 44px; height: 44px;
-    cursor: pointer; flex-direction: column;
-    align-items: center; justify-content: center; gap: 5px;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
     box-shadow: 0 4px 14px rgba(200,100,120,0.35);
+  }
+  .btn-hamburger.active {
+    display: -webkit-flex !important;
+    display: flex !important;
+    -webkit-flex-direction: column;
+    flex-direction: column;
+    -webkit-align-items: center;
+    align-items: center;
+    -webkit-justify-content: center;
+    justify-content: center;
+    gap: 5px;
   }
   .btn-hamburger span {
     display: block; width: 20px; height: 2px;
@@ -849,7 +866,7 @@
   .sidebar-overlay.open { display: block; }
 
   @media (max-width: 900px) {
-    .btn-hamburger { display: flex; }
+    .btn-hamburger.active { display: -webkit-flex !important; display: flex !important; }
     .sidebar { transform: translateX(-100%); transition: transform .28s ease; z-index: 1050; }
     .sidebar.open { transform: translateX(0); overflow-y: auto; }
     .main { margin-left: 0; padding: 0; }
@@ -1275,14 +1292,13 @@
 <!-- ══════════════════════════════════
      APP
 ══════════════════════════════════ -->
-<div id="app">
-  <!-- Hamburger button (mobile) -->
-  <button class="btn-hamburger" id="btn-hamburger" onclick="toggleSidebar()" aria-label="Menu">
-    <span></span><span></span><span></span>
-  </button>
-  <!-- Overlay -->
-  <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+<!-- Hamburger button (mobile) — fora do #app para funcionar antes/depois do login -->
+<button class="btn-hamburger" id="btn-hamburger" onclick="toggleSidebar()" aria-label="Menu">
+  <span></span><span></span><span></span>
+</button>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
 
+<div id="app">
   <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
@@ -3164,19 +3180,30 @@ function switchAuthTab(tab) {
 }
 
 function toggleSidebar() {
-  const sidebar  = document.getElementById('sidebar');
-  const btn      = document.getElementById('btn-hamburger');
-  const overlay  = document.getElementById('sidebar-overlay');
-  const isOpen   = sidebar.classList.toggle('open');
+  const sidebar = document.getElementById('sidebar');
+  const btn     = document.getElementById('btn-hamburger');
+  const overlay = document.getElementById('sidebar-overlay');
+  const isOpen  = sidebar.classList.toggle('open');
   btn.classList.toggle('open', isOpen);
   overlay.classList.toggle('open', isOpen);
-  document.body.style.overflow = isOpen ? 'hidden' : '';
+  // Safari iOS: usa position fixed no body para evitar scroll por trás
+  if (isOpen) {
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    document.body.style.overflow = 'hidden';
+  } else {
+    document.body.style.position = '';
+    document.body.style.width = '';
+    document.body.style.overflow = '';
+  }
 }
 
 function closeSidebar() {
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('btn-hamburger').classList.remove('open');
   document.getElementById('sidebar-overlay').classList.remove('open');
+  document.body.style.position = '';
+  document.body.style.width = '';
   document.body.style.overflow = '';
 }
 
@@ -3605,6 +3632,14 @@ async function abrirCardapioPublico(e) {
 function enterApp(user) {
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').classList.add('visible');
+  // Mostra botão hamburger no mobile após login
+  const _hambBtn = document.getElementById('btn-hamburger');
+  if (_hambBtn) {
+    _hambBtn.classList.add('active');
+    // Força repaint no Safari iOS
+    _hambBtn.style.display = '';
+    void _hambBtn.offsetHeight;
+  }
   document.getElementById('user-name-display').textContent = user.name;
   document.getElementById('user-email-display').textContent = user.email;
   document.getElementById('user-avatar').textContent = user.name.charAt(0).toUpperCase();
