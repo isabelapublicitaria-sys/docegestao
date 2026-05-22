@@ -1525,6 +1525,25 @@
                 <input type="hidden" id="cart-client" value="" />
                 <div id="pdv-cliente-resultado" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--white);border:2px solid var(--cream-mid);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:99;max-height:200px;overflow-y:auto;margin-top:4px"></div>
               </div>
+
+              <!-- Tipo de entrega -->
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button id="pdv-btn-retirada" onclick="setPDVEntrega('retirada')"
+                  style="flex:1;padding:8px;border:2px solid var(--caramel);background:var(--caramel);color:white;border-radius:10px;font-family:'Comfortaa',sans-serif;font-size:.78rem;font-weight:700;cursor:pointer">
+                  🏠 Retirada
+                </button>
+                <button id="pdv-btn-entrega" onclick="setPDVEntrega('entrega')"
+                  style="flex:1;padding:8px;border:2px solid var(--cream-mid);background:var(--white);color:var(--text-mid);border-radius:10px;font-family:'Comfortaa',sans-serif;font-size:.78rem;font-weight:700;cursor:pointer">
+                  🛵 Entrega
+                </button>
+              </div>
+              <div id="pdv-end-wrap" style="display:none;margin-top:6px">
+                <input type="text" id="pdv-endereco"
+                  placeholder="📍 Endereço de entrega"
+                  style="width:100%;padding:9px 12px;border:2px solid var(--cream-mid);border-radius:10px;font-family:'Comfortaa',sans-serif;font-size:.82rem;outline:none;background:var(--white)" />
+              </div>
+              <input type="hidden" id="pdv-tipo-entrega" value="retirada" />
+
               <button class="btn-checkout" id="btn-checkout" onclick="finalizarVenda()" disabled>
                 ✅ Finalizar venda
               </button>
@@ -3190,6 +3209,22 @@ function switchAuthTab(tab) {
   document.getElementById('register-form').style.display = tab==='register' ? 'flex' : 'none';
 }
 
+function setPDVEntrega(tipo) {
+  document.getElementById('pdv-tipo-entrega').value = tipo;
+  const btnR = document.getElementById('pdv-btn-retirada');
+  const btnE = document.getElementById('pdv-btn-entrega');
+  const wrap = document.getElementById('pdv-end-wrap');
+  if (tipo === 'retirada') {
+    btnR.style.background = 'var(--caramel)'; btnR.style.color = 'white'; btnR.style.borderColor = 'var(--caramel)';
+    btnE.style.background = 'var(--white)'; btnE.style.color = 'var(--text-mid)'; btnE.style.borderColor = 'var(--cream-mid)';
+    wrap.style.display = 'none';
+  } else {
+    btnE.style.background = 'var(--caramel)'; btnE.style.color = 'white'; btnE.style.borderColor = 'var(--caramel)';
+    btnR.style.background = 'var(--white)'; btnR.style.color = 'var(--text-mid)'; btnR.style.borderColor = 'var(--cream-mid)';
+    wrap.style.display = 'block';
+  }
+}
+
 function toggleSidebar() {
   const sidebar = document.getElementById('sidebar');
   const btn     = document.getElementById('btn-hamburger');
@@ -4338,14 +4373,22 @@ async function finalizarVenda() {
   const cliente = db.clientes.find(c => c.id === clienteId);
   const total = cart.reduce((s,c) => s + c.qty * c.preco, 0);
 
+  const _tipoEntrega = document.getElementById('pdv-tipo-entrega')?.value || 'retirada';
+  const _endEntrega  = document.getElementById('pdv-endereco')?.value?.trim() || null;
+  const _clienteTel  = cliente?.tel || null;
+
   const venda = {
     id: Date.now().toString(),
     data: new Date().toISOString(),
-    cliente_id: clienteId,
-    cliente_nome: cliente?.nome || '—',
-    itens: cart.map(c => ({ nome: c.nome, qty: c.qty, preco: c.preco })),
+    cliente_id:       clienteId,
+    cliente_nome:     cliente?.nome || '—',
+    cliente_tel:      _clienteTel,
+    itens:            cart.map(c => ({ nome: c.nome, qty: c.qty, preco: c.preco })),
     total,
-    status: 'Pago',
+    status:           'Pago',
+    canal:            'pdv',
+    tipo_entrega:     _tipoEntrega,
+    endereco_entrega: _tipoEntrega === 'entrega' ? _endEntrega : null,
   };
 
   // Update stock
@@ -4719,7 +4762,7 @@ function gerarCupomHTML(v) {
       ${v.cliente_nome ? `<div>👤 <b>${v.cliente_nome}</b></div>` : ''}
       ${v.cliente_tel  ? `<div>📱 ${v.cliente_tel}</div>` : ''}
       <div style="font-weight:bold;margin-top:3px">${v.tipo_entrega === 'entrega' ? '🛵 ENTREGA' : '🏠 RETIRADA NO LOCAL'}</div>
-      ${v.endereco_entrega ? `<div>📍 ${v.endereco_entrega}</div>` : ''}
+      ${(v.endereco_entrega || v.endereco) ? `<div>📍 ${v.endereco_entrega || v.endereco}</div>` : ''}
     </div>
 
     <div class="linha"></div>
@@ -4752,9 +4795,27 @@ function gerarCupomHTML(v) {
   </body></html>`;
 }
 
-function imprimirVenda(id) {
-  const v = db.vendas.find(x => x.id == id || String(x.id) === String(id));
+async function imprimirVenda(id) {
+  let v = db.vendas.find(x => x.id == id || String(x.id) === String(id));
   if (!v) { toast('Venda não encontrada', 'error'); return; }
+
+  // Busca campos extras do banco se não estiverem em memória
+  if (!v.tipo_entrega || !v.cliente_tel) {
+    try {
+      const uid = await getUID();
+      let tok = SUPABASE_KEY;
+      if (sbClient) { const { data: s } = await sbClient.auth.getSession(); if (s?.session?.access_token) tok = s.session.access_token; }
+      const res = await fetch(
+        `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/vendas?id=eq.${id}&select=tipo_entrega,endereco_entrega,cliente_tel,pagamento,obs&limit=1`,
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${tok}` } }
+      );
+      if (res.ok) {
+        const extra = await res.json();
+        if (extra?.[0]) v = { ...v, ...extra[0] };
+      }
+    } catch(e) { console.warn('imprimirVenda fetch:', e.message); }
+  }
+
   const html = gerarCupomHTML(v);
   const win  = window.open('', '_blank', 'width=400,height=600');
   if (!win) { toast('Permita pop-ups para imprimir', 'error'); return; }

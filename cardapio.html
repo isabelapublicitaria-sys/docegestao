@@ -969,7 +969,8 @@ body {
       <div id="end-wrap" style="display:none">
         <div class="fld">
           <label>Endereço completo</label>
-          <input type="text" id="ck-end" placeholder="Rua, número, bairro, cidade" />
+          <input type="text" id="ck-end" placeholder="Rua, número, bairro, cidade"
+            oninput="if(this.value.length>3 && tipoEntrega==='retirada') setEntrega('entrega')" />
         </div>
       </div>
 
@@ -1842,10 +1843,14 @@ async function confirmarPedido() {
   const venda = {
     id: pedidoId, data: new Date().toISOString(),
     cliente_nome: nome, cliente_id: '',
+    cliente_tel:  tel  || null,
     itens: JSON.stringify(cart.map(c => ({ nome:c.nome, qty:c.qty, preco:c.preco }))),
     total, status: 'Aguardando confirmação',
     user_id: LOJA_USER_ID || undefined,
-    obs: obs || null, canal: 'cardapio_digital',
+    obs:          obs          || null,
+    canal:        'cardapio_digital',
+    tipo_entrega: end ? 'entrega' : (tipoEntrega || 'retirada'),
+    endereco_entrega: end || null,
   };
 
   // Usa fetch direto para contornar RLS do cliente anônimo
