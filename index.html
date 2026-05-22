@@ -4878,8 +4878,23 @@ function filterClientes() {
 }
 
 async function verHistoricoCliente(id) {
-  const c = db.clientes.find(x => x.id === id);
+  let c = db.clientes.find(x => x.id === id);
   if (!c) return;
+
+  // Busca dados completos do cliente do banco (pode ter endereco não carregado no localStorage)
+  try {
+    const uid = await getUID();
+    if (uid) {
+      const resCli = await fetch(
+        `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/clientes?id=eq.${id}&user_id=eq.${uid}&select=*&limit=1`,
+        { headers: await getAuthHeaders() }
+      );
+      if (resCli.ok) {
+        const cliData = await resCli.json();
+        if (cliData?.[0]) c = { ...c, ...cliData[0] };
+      }
+    }
+  } catch(e) {}
 
   // Busca vendas do Supabase para este cliente
   let compras = db.vendas.filter(v => v.cliente_id === id || v.cliente_nome === c.nome);

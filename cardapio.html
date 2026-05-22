@@ -937,7 +937,9 @@ body {
         </div>
         <div class="fld">
           <label>WhatsApp *</label>
-          <input type="tel" id="ck-tel" placeholder="(11) 99999-9999" oninput="formatarTelCheckout(this)" onblur="buscarClientePorTel(this.value)" />
+          <input type="tel" id="ck-tel" placeholder="(11) 99999-9999" 
+            oninput="formatarTelCheckout(this);var _d=this.value.replace(/[^0-9]/g,'');if(_d.length>=10)buscarClientePorTel(this.value)"
+            onblur="buscarClientePorTel(this.value)" />
         </div>
       </div>
       <div class="row2">
