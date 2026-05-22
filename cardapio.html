@@ -1596,7 +1596,7 @@ async function buscarClientePorTel(tel) {
   try {
     const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA';
     const res = await fetch(
-      `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/clientes?user_id=eq.${LOJA_USER_ID}&tel=ilike.*${telLimpo.slice(-8)}*&select=nome,email,aniversario,endereco,bairro,referencia,numero&limit=1`,
+      `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/clientes?user_id=eq.${LOJA_USER_ID}&or=(tel.ilike.*${telLimpo.slice(-8)}*,tel.ilike.*${telLimpo.slice(-9)}*)&select=nome,email,aniversario,endereco,bairro,referencia,numero&limit=1`,
       { headers: { 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}` } }
     );
     if (!res.ok) return;
