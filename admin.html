@@ -1255,10 +1255,10 @@ async function salvarPlanoCliente() {
     if (error) throw error;
 
     const idx = allPlanos.findIndex(x => x.user_id === userId);
-    const obj = { user_id: userId, plano: novoPlano, vencimento, atualizado: new Date().toISOString() };
+    const obj = { user_id: userId, plano: planoFinal, vencimento: vencFinal, cortesia, status: 'ativo', atualizado: new Date().toISOString() };
     if (idx >= 0) allPlanos[idx] = obj; else allPlanos.push(obj);
 
-    toast2('Plano atualizado!', 'ok');
+    toast2(cortesia ? '🎁 Brinde/Cortesia salvo!' : 'Plano atualizado!', 'ok');
     await abrirCliente(userId);
     renderClientes2();
   } catch(e) {
