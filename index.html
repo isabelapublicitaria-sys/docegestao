@@ -4358,7 +4358,14 @@ async function finalizarVenda() {
   const buscaEl = document.getElementById('pdv-cliente-busca');
   if (buscaEl) { buscaEl.value = ''; buscaEl.style.borderColor = 'var(--cream-mid)'; buscaEl.style.background = 'var(--white)'; }
   document.getElementById('cart-client').value = '';
+
+  // Pergunta se quer imprimir cupom
   toast(`Venda de ${formatMoney(total)} finalizada! 🎉`, 'success');
+  setTimeout(() => {
+    if (confirm('🖨️ Imprimir cupom desta venda?')) {
+      imprimirVendaObj(venda);
+    }
+  }, 400);
 }
 
 // ══════════════════════════════════════
@@ -4637,11 +4644,121 @@ function filterVendas() {
       <td>${v.canal==='cardapio_digital'?'<span class="badge badge-blue" style="font-size:.68rem">🛍️ Cardápio</span>':'<span class="badge" style="background:var(--cream-dark);color:var(--text-mid);font-size:.68rem">PDV</span>'}</td>
       <td><span class="badge ${v.status==='Pago'||v.status==='Concluído'?'badge-green':'badge-amber'}">${v.status||'Pago'}</span></td>
       <td>
+        <button class="btn-icon" onclick="imprimirVenda('${v.id}')" title="Imprimir cupom">🖨️</button>
         <button class="btn-icon" onclick="editarVenda('${v.id}')" title="Editar">✏️</button>
         <button class="btn-icon danger" onclick="excluirVenda('${v.id}')" title="Excluir">🗑</button>
       </td>
     </tr>`).join('') :
     '<tr><td colspan="8"><div class="empty-state"><div class="icon">🧾</div><h3>Nenhuma venda encontrada</h3></div></td></tr>';
+}
+
+// ══════════════════════════════════════
+// IMPRESSÃO DE CUPOM
+// ══════════════════════════════════════
+function gerarCupomHTML(v) {
+  const itens = parseItens(v.itens);
+  const agora = new Date(v.data || Date.now());
+  const dataStr = agora.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric' });
+  const horaStr = agora.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+  const empresa = db.config.empresa || 'Confeitaria';
+  const tel     = db.config.tel     || '';
+  const end     = db.config.endereco || db.config.cidade || '';
+
+  const linhaItens = itens.map(i =>
+    `<tr>
+      <td style="padding:3px 0">${i.qty}x ${i.nome}</td>
+      <td style="text-align:right;padding:3px 0">${formatMoney(i.qty * (i.preco||0))}</td>
+    </tr>`
+  ).join('');
+
+  return `<!DOCTYPE html><html><head>
+    <meta charset="UTF-8">
+    <title>Cupom #${String(v.id).slice(-6)}</title>
+    <style>
+      * { margin:0; padding:0; box-sizing:border-box; }
+      body { font-family: 'Courier New', monospace; font-size: 12px; width: 80mm; padding: 8px; color: #000; }
+      .center { text-align: center; }
+      .bold { font-weight: bold; }
+      .linha { border-top: 1px dashed #000; margin: 6px 0; }
+      table { width: 100%; border-collapse: collapse; }
+      .total-row td { font-weight: bold; font-size: 15px; padding-top: 6px; }
+      .footer { font-size: 10px; text-align: center; margin-top: 4px; }
+      @media print {
+        body { width: 80mm; }
+        @page { margin: 0; size: 80mm auto; }
+      }
+    </style>
+  </head><body>
+
+    <!-- 1. Nome da confeitaria, telefone e endereço -->
+    <div class="center bold" style="font-size:15px">${empresa}</div>
+    ${tel ? `<div class="center" style="font-size:10px">Tel: ${tel}</div>` : ''}
+    ${end ? `<div class="center" style="font-size:10px">${end}</div>` : ''}
+
+    <div class="linha"></div>
+
+    <!-- 2. Número do pedido, data e hora -->
+    <div class="center bold" style="font-size:13px">PEDIDO #${String(v.id).slice(-6)}</div>
+    <div class="center" style="font-size:11px">${dataStr} às ${horaStr}</div>
+
+    <div class="linha"></div>
+
+    <!-- 3. Nome, WhatsApp e endereço do cliente + tipo -->
+    <div style="font-size:11px;line-height:1.8">
+      ${v.cliente_nome ? `<div>👤 <b>${v.cliente_nome}</b></div>` : ''}
+      ${v.cliente_tel  ? `<div>📱 ${v.cliente_tel}</div>` : ''}
+      <div style="font-weight:bold;margin-top:3px">${v.tipo_entrega === 'entrega' ? '🛵 ENTREGA' : '🏠 RETIRADA NO LOCAL'}</div>
+      ${v.endereco_entrega ? `<div>📍 ${v.endereco_entrega}</div>` : ''}
+    </div>
+
+    <div class="linha"></div>
+
+    <!-- 4. Itens -->
+    <table>${linhaItens}</table>
+
+    <div class="linha"></div>
+
+    <!-- 5. Total -->
+    <table>
+      <tr class="total-row">
+        <td>TOTAL</td>
+        <td style="text-align:right">${formatMoney(v.total)}</td>
+      </tr>
+    </table>
+
+    <!-- 6. Forma de pagamento -->
+    ${v.pagamento || v.payment_method ? `<div style="font-size:11px;margin-top:4px">💳 Pagamento: ${v.pagamento || v.payment_method}</div>` : ''}
+
+    <!-- 7. Observações -->
+    ${v.obs ? `<div class="linha"></div><div style="font-size:11px"><b>Obs:</b> ${v.obs}</div>` : ''}
+
+    <div class="linha"></div>
+
+    <!-- 8. Rodapé -->
+    <div class="footer">gesttaconfeitaria.com.br</div>
+    <div class="footer">Obrigada pela preferência! 🍰</div>
+    <br><br><br>
+  </body></html>`;
+}
+
+function imprimirVenda(id) {
+  const v = db.vendas.find(x => x.id == id || String(x.id) === String(id));
+  if (!v) { toast('Venda não encontrada', 'error'); return; }
+  const html = gerarCupomHTML(v);
+  const win  = window.open('', '_blank', 'width=400,height=600');
+  if (!win) { toast('Permita pop-ups para imprimir', 'error'); return; }
+  win.document.write(html);
+  win.document.close();
+  win.onload = () => { win.print(); };
+}
+
+function imprimirVendaObj(v) {
+  const html = gerarCupomHTML(v);
+  const win  = window.open('', '_blank', 'width=400,height=600');
+  if (!win) return; // se pop-up bloqueado, não imprime automaticamente
+  win.document.write(html);
+  win.document.close();
+  win.onload = () => { win.print(); };
 }
 
 // ══════════════════════════════════════
