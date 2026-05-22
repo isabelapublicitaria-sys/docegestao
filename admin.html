@@ -446,6 +446,7 @@ tbody tr:last-child td { border-bottom:none; }
             <option value="gratis">Grátis</option>
             <option value="basic">Basic</option>
             <option value="pro">Pro</option>
+            <option value="cortesia">🎁 Cortesia</option>
           </select>
           <select class="sel2" id="cli-status-filter" onchange="renderClientes2()">
             <option value="">Todos os status</option>
@@ -534,6 +535,10 @@ tbody tr:last-child td { border-bottom:none; }
         </select>
         <input type="date" id="mc2-vencimento" style="padding:6px 10px;border:2px solid var(--cream3);border-radius:8px;font-family:'Comfortaa',sans-serif;font-size:.78rem" />
         <button class="btn-sm2 prim" onclick="salvarPlanoCliente()">Salvar</button>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--text2);cursor:pointer;margin-left:4px">
+          <input type="checkbox" id="mc2-cortesia" style="width:16px;height:16px;accent-color:#d4849a;cursor:pointer" />
+          🎁 Brinde/Cortesia
+        </label>
       </div>
 
       <!-- Status do cliente -->
@@ -709,7 +714,8 @@ function getPlanoPerfil(perfil) {
   return p || { plano: 'gratis', vencimento: null, ativo: true };
 }
 
-function getPlanoInfo(plano) {
+function getPlanoInfo(plano, cortesia) {
+  if (cortesia) return { label:'Cortesia', cls:'plan-pro', icon:'🎁', preco:'Brinde', desc:'Conta brinde/cortesia' };
   return PLANO_LABELS[plano] || PLANO_LABELS.gratis;
 }
 
@@ -755,7 +761,7 @@ function renderOverview() {
   contagemPlanos.gratis = allPerfis.length - allPlanos.filter(p=>p.plano&&p.plano!=='gratis').length;
 
   document.getElementById('overview-planos').innerHTML = Object.entries(contagemPlanos).map(([plano, n]) => {
-    const info = getPlanoInfo(plano);
+    const info = getPlanoInfo(plano, null);
     const pct  = allPerfis.length > 0 ? Math.round((n/allPerfis.length)*100) : 0;
     return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--cream2)">
       <span class="plan-badge ${info.cls}">${info.icon} ${info.label}</span>
@@ -773,7 +779,7 @@ function renderOverview() {
   document.getElementById('overview-recentes').innerHTML = recentes.length
     ? recentes.map(p => {
         const pl = getPlanoPerfil(p);
-        const info = getPlanoInfo(pl.plano);
+        const info = getPlanoInfo(pl.plano, pl.cortesia);
         return `<div style="display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--cream2)">
           <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--caramel2),var(--rose));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;color:white;flex-shrink:0">
             ${(p.nome||p.empresa||'?').charAt(0).toUpperCase()}
@@ -803,7 +809,11 @@ function renderClientes2() {
     (p.empresa||'').toLowerCase().includes(q) ||
     (p.user_id||'').toLowerCase().includes(q));
 
-  if (planoFilt) lista = lista.filter(p => getPlanoPerfil(p).plano === planoFilt);
+  if (planoFilt === 'cortesia') {
+    lista = lista.filter(p => getPlanoPerfil(p).cortesia === true);
+  } else if (planoFilt) {
+    lista = lista.filter(p => getPlanoPerfil(p).plano === planoFilt && !getPlanoPerfil(p).cortesia);
+  }
 
   if (statusFilt === 'vencido') lista = lista.filter(p => isVencido(getPlanoPerfil(p).vencimento));
   if (statusFilt === 'ativo')   lista = lista.filter(p => !isVencido(getPlanoPerfil(p).vencimento));
@@ -898,7 +908,7 @@ async function abrirCliente(userId) {
   document.getElementById('mc2-email').textContent = p.nome || '—';
 
   const pl   = getPlanoPerfil(p);
-  const info = getPlanoInfo(pl.plano);
+  const info = getPlanoInfo(pl.plano, pl.cortesia);
   const dias = diasParaVencer(pl.vencimento);
 
   // Dados completos do cliente
@@ -935,6 +945,8 @@ async function abrirCliente(userId) {
 
   // Preenche selects
   document.getElementById('mc2-novo-plano').value = pl.plano || 'gratis';
+  const chkCortesia = document.getElementById('mc2-cortesia');
+  if (chkCortesia) chkCortesia.checked = pl.cortesia === true;
   const statusAtual = p.status || 'ativo';
   const badge = document.getElementById('mc2-status-badge');
   badge.textContent    = statusAtual === 'suspenso' ? '🔴 Suspenso' : '✅ Ativo';
@@ -1010,15 +1022,26 @@ function fecharModal2() {
 
 async function salvarPlanoCliente() {
   if (!clienteAtual) return;
-  const novoPlano = document.getElementById('mc2-novo-plano').value;
-  const vencimento= document.getElementById('mc2-vencimento').value || null;
-  const userId    = clienteAtual.user_id;
+  const novoPlano  = document.getElementById('mc2-novo-plano').value;
+  const vencimento = document.getElementById('mc2-vencimento').value || null;
+  const cortesia   = document.getElementById('mc2-cortesia')?.checked === true;
+  const userId     = clienteAtual.user_id;
+
+  // Se cortesia: Pro com vencimento 2099
+  const vencFinal = cortesia ? '2099-12-31' : vencimento;
+  const planoFinal = cortesia ? 'pro' : novoPlano;
+  if (cortesia) {
+    document.getElementById('mc2-novo-plano').value = 'pro';
+    document.getElementById('mc2-vencimento').value = '2099-12-31';
+  }
 
   try {
     const { error } = await sb.from('admin_planos').upsert({
       user_id:    userId,
-      plano:      novoPlano,
-      vencimento: vencimento,
+      plano:      planoFinal,
+      vencimento: vencFinal,
+      cortesia:   cortesia,
+      status:     'ativo',
       atualizado: new Date().toISOString(),
     }, { onConflict: 'user_id' });
     if (error) throw error;
@@ -1039,17 +1062,13 @@ async function alterarStatusCliente(novoStatus) {
   if (!clienteAtual) return;
   const userId = clienteAtual.user_id;
   try {
-    // Usa JWT da sessão ativa (não a anon key)
-    const { data: { session } } = await sb.auth.getSession();
-    const token = session?.access_token || SUPABASE_KEY;
-
     const res = await fetch(
       `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/perfis?user_id=eq.${userId}`,
       {
         method: 'PATCH',
         headers: {
           'apikey':       SUPABASE_KEY,
-          'Authorization':`Bearer ${token}`,
+          'Authorization':`Bearer ${SUPABASE_KEY}`,
           'Content-Type': 'application/json',
           'Prefer':       'return=minimal',
         },
