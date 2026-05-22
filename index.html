@@ -447,6 +447,8 @@
     cursor: pointer; transition: var(--transition);
     display: inline-flex; align-items: center; justify-content: center;
     font-size: 0.85rem;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
   .btn-icon:hover { background: var(--caramel); color: white; }
   .btn-icon.danger:hover { background: #c0392b; color: white; }
@@ -883,6 +885,13 @@
     .stat-cards { grid-template-columns: 1fr 1fr; }
     .vendas-table { font-size: .8rem; }
     .vendas-table th, .vendas-table td { padding: 10px 8px; }
+    /* Botões de ação maiores no mobile para toque fácil */
+    .btn-icon { width: 40px !important; height: 40px !important; font-size: 1rem !important; }
+    /* Todas as tabelas com scroll horizontal */
+    table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    thead, tbody { display: table; width: 100%; }
+    /* Esconde colunas menos importantes em telas pequenas */
+    .hide-mobile { display: none !important; }
     .modal-box { margin: 16px; width: calc(100% - 32px) !important; max-height: 90vh; overflow-y: auto; }
     .btn-primary, .btn-secondary { padding: 12px 18px; font-size: .85rem; }
     .pdv-grid { grid-template-columns: 1fr; }
@@ -1573,16 +1582,18 @@
           </select>
           <input type="date" class="search-input" style="flex:0;width:150px" id="vendas-data" onchange="filterVendas()" />
         </div>
-        <table>
+        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%">
+        <table style="min-width:600px">
           <thead>
             <tr>
-              <th>#</th><th>Data</th><th>Cliente</th><th>Itens</th><th>Total</th><th>Canal</th><th>Status</th><th>Ações</th>
+              <th>#</th><th>Data</th><th>Cliente</th><th class="hide-mobile">Itens</th><th>Total</th><th class="hide-mobile">Canal</th><th>Status</th><th>Ações</th>
             </tr>
           </thead>
           <tbody id="vendas-tbody">
             <tr><td colspan="8"><div class="empty-state"><div class="icon">🧾</div><h3>Nenhuma venda ainda</h3><p>Faça sua primeira venda pelo Ponto de Venda</p></div></td></tr>
           </tbody>
         </table>
+        </div>
       </div>
     </section>
 
@@ -4639,9 +4650,9 @@ function filterVendas() {
       <td style="font-weight:700;color:var(--caramel-dk)">#${String(v.id).slice(-4)}</td>
       <td>${formatDate(v.data)}</td>
       <td>${v.cliente_nome || '—'}</td>
-      <td style="font-size:.78rem;color:var(--text-lt);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${parseItens(v.itens).map(i=>`${i.qty}x ${i.nome}`).join(', ')||'—'}</td>
+      <td class="hide-mobile" style="font-size:.78rem;color:var(--text-lt);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${parseItens(v.itens).map(i=>`${i.qty}x ${i.nome}`).join(', ')||'—'}</td>
       <td><strong>${formatMoney(v.total)}</strong></td>
-      <td>${v.canal==='cardapio_digital'?'<span class="badge badge-blue" style="font-size:.68rem">🛍️ Cardápio</span>':'<span class="badge" style="background:var(--cream-dark);color:var(--text-mid);font-size:.68rem">PDV</span>'}</td>
+      <td class="hide-mobile">${v.canal==='cardapio_digital'?'<span class="badge badge-blue" style="font-size:.68rem">🛍️ Cardápio</span>':'<span class="badge" style="background:var(--cream-dark);color:var(--text-mid);font-size:.68rem">PDV</span>'}</td>
       <td><span class="badge ${v.status==='Pago'||v.status==='Concluído'?'badge-green':'badge-amber'}">${v.status||'Pago'}</span></td>
       <td>
         <button class="btn-icon" onclick="imprimirVenda('${v.id}')" title="Imprimir cupom">🖨️</button>
