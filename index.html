@@ -4941,6 +4941,7 @@ async function verHistoricoCliente(id) {
             ${c.email      ? `<div style="background:var(--cream);border-radius:8px;padding:8px 12px;font-size:.78rem"><strong>📧</strong> ${c.email}</div>` : ''}
             ${c.aniversario? `<div style="background:var(--cream);border-radius:8px;padding:8px 12px;font-size:.78rem"><strong>🎂</strong> ${new Date(c.aniversario+'T00:00').toLocaleDateString('pt-BR')}</div>` : ''}
             ${c.obs        ? `<div style="background:var(--cream);border-radius:8px;padding:8px 12px;font-size:.78rem"><strong>📝</strong> ${c.obs}</div>` : ''}
+            ${(c.endereco||c.bairro||c.cidade) ? `<div style="background:var(--cream);border-radius:8px;padding:8px 12px;font-size:.78rem;width:100%"><strong>📍</strong> ${[c.endereco,c.numero,c.bairro,c.referencia,c.cidade,c.estado].filter(Boolean).join(', ')}</div>` : ''}
           </div>
 
           <!-- Histórico de pedidos -->

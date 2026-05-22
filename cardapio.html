@@ -1590,6 +1590,7 @@ function formatarTelCheckout(input) {
 async function buscarClientePorTel(tel) {
   const telLimpo = tel.replace(/\D/g,'');
   if (telLimpo.length < 8) return;
+  if (!LOJA_USER_ID) return; // aguarda resolução do user_id
   try {
     const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA';
     const res = await fetch(
