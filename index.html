@@ -192,7 +192,7 @@
     background: #3d2b3d;
     display: flex; flex-direction: column;
     position: fixed; left: 0; top: 0; bottom: 0;
-    z-index: 100;
+    z-index: 1050;
     transition: var(--transition);
     overflow: hidden;
   }
@@ -824,7 +824,7 @@
   /* Hamburger button */
   .btn-hamburger {
     display: none;
-    position: fixed; top: 14px; left: 14px; z-index: 1100;
+    position: fixed; top: 10px; left: 10px; z-index: 1060;
     background: linear-gradient(135deg, var(--rose), var(--rose-dk));
     border: none; border-radius: 12px;
     width: 44px; height: 44px;
@@ -843,15 +843,15 @@
 
   /* Overlay escuro por trás do menu */
   .sidebar-overlay {
-    display: none; position: fixed; inset: 0; z-index: 1000;
+    display: none; position: fixed; inset: 0; z-index: 1040;
     background: rgba(30,10,20,.45); backdrop-filter: blur(2px);
   }
   .sidebar-overlay.open { display: block; }
 
   @media (max-width: 900px) {
     .btn-hamburger { display: flex; }
-    .sidebar { transform: translateX(-100%); transition: transform .28s ease; }
-    .sidebar.open { transform: translateX(0); }
+    .sidebar { transform: translateX(-100%); transition: transform .28s ease; z-index: 1050; }
+    .sidebar.open { transform: translateX(0); overflow-y: auto; }
     .main { margin-left: 0; padding: 0; }
     .topbar { padding: 0 16px 0 68px; height: 56px; }
     .topbar-title { font-size: 1.1rem; }
