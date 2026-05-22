@@ -4861,16 +4861,39 @@ async function imprimirVenda(id) {
   if (!win) { toast('Permita pop-ups para imprimir', 'error'); return; }
   win.document.write(html);
   win.document.close();
-  win.onload = () => { win.print(); };
+  aguardarEImprimir(win);
 }
 
 function imprimirVendaObj(v) {
   const html = gerarCupomHTML(v);
   const win  = window.open('', '_blank', 'width=400,height=600');
-  if (!win) return; // se pop-up bloqueado, não imprime automaticamente
+  if (!win) return;
   win.document.write(html);
   win.document.close();
-  win.onload = () => { win.print(); };
+  aguardarEImprimir(win);
+}
+
+function aguardarEImprimir(win) {
+  // Aguarda todas as imagens carregarem antes de imprimir
+  win.onload = () => {
+    const imgs = win.document.images;
+    if (imgs.length === 0) {
+      setTimeout(() => win.print(), 300);
+      return;
+    }
+    let loaded = 0;
+    const total = imgs.length;
+    const checkAndPrint = () => {
+      loaded++;
+      if (loaded >= total) setTimeout(() => win.print(), 300);
+    };
+    Array.from(imgs).forEach(img => {
+      if (img.complete) { checkAndPrint(); }
+      else { img.onload = checkAndPrint; img.onerror = checkAndPrint; }
+    });
+    // Fallback: imprime após 3 segundos mesmo se imagem não carregar
+    setTimeout(() => { try { win.print(); } catch(e){} }, 3000);
+  };
 }
 
 // ══════════════════════════════════════
