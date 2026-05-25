@@ -4754,33 +4754,38 @@ function gerarCupomHTML(v) {
     <title>Cupom #${String(v.id).slice(-6)}</title>
     <style>
       * { margin:0; padding:0; box-sizing:border-box; }
-      html, body { width:58mm; max-width:58mm; font-family:'Courier New',Courier,monospace; font-size:10pt; color:#000; background:#fff; }
-      body { padding:3mm 2mm; }
-      .linha  { border:none; border-top:1px dashed #000; margin:2.5mm 0; }
-      .logo-wrap { text-align:center; margin-bottom:2mm; }
-      .logo-img { width:22mm; height:22mm; border-radius:50%; object-fit:cover; }
-      .logo-placeholder { width:22mm; height:22mm; border-radius:50%; background:#f0e4ec; display:inline-flex; align-items:center; justify-content:center; font-size:7pt; color:#6B2D5E; font-weight:700; }
-      .empresa { font-size:11pt; font-weight:700; text-align:center; margin-bottom:0.5mm; }
-      .sub     { font-size:8pt; text-align:center; color:#333; line-height:1.5; }
-      .gestta  { text-align:center; margin-top:1.5mm; }
-      .pedido  { font-size:11pt; font-weight:700; text-align:center; }
-      .data    { font-size:8pt; text-align:center; color:#444; }
-      .bloco   { font-size:9pt; line-height:1.8; }
+      html, body { width:58mm; max-width:58mm; font-family:'Courier New',Courier,monospace; font-size:10pt; color:#000; background:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      body { padding:4mm 3mm 12mm 3mm; }
+      .linha  { border:none; border-top:1.5px dashed #000; margin:3mm 0; }
+      .logo-wrap { text-align:center; margin-bottom:2mm; padding-top:1mm; }
+      .logo-img { width:26mm; height:26mm; border-radius:50%; object-fit:cover; display:block; margin:0 auto; }
+      .logo-placeholder { width:26mm; height:26mm; border-radius:50%; background:#f0e4ec; display:inline-flex; align-items:center; justify-content:center; font-size:7pt; color:#000; font-weight:700; }
+      .empresa { font-size:12pt; font-weight:900; text-align:center; margin-bottom:1mm; color:#000; letter-spacing:0.3px; }
+      .sub     { font-size:9pt; font-weight:700; text-align:center; color:#000; line-height:1.6; }
+      .gestta  { text-align:center; margin-top:2mm; margin-bottom:1mm; }
+      .pedido  { font-size:12pt; font-weight:900; text-align:center; color:#000; }
+      .data    { font-size:9pt; font-weight:700; text-align:center; color:#000; margin-top:0.5mm; }
+      .bloco   { font-size:9.5pt; font-weight:700; line-height:1.9; color:#000; }
+      .bloco b { font-weight:900; }
       table    { width:100%; border-collapse:collapse; }
-      td       { font-size:9pt; vertical-align:top; padding:0.8mm 0; }
-      td.r     { text-align:right; white-space:nowrap; padding-left:2mm; }
-      .tot td  { font-size:12pt; font-weight:700; padding-top:2mm; }
-      .pag     { font-size:8pt; margin-top:1mm; }
-      .obs     { font-size:8pt; }
-      .footer  { font-size:7pt; text-align:center; margin-top:1mm; color:#555; }
+      td       { font-size:9.5pt; font-weight:700; vertical-align:top; padding:1mm 0; color:#000; }
+      td.r     { text-align:right; white-space:nowrap; padding-left:2mm; font-weight:700; }
+      .tot td  { font-size:13pt; font-weight:900; padding-top:2mm; color:#000; }
+      .pag     { font-size:9pt; font-weight:700; margin-top:1.5mm; color:#000; }
+      .obs     { font-size:9pt; font-weight:700; color:#000; }
+      .footer  { font-size:8pt; font-weight:700; text-align:center; margin-top:1.5mm; color:#000; }
       @page    { size:58mm auto; margin:0; }
-      @media print { html,body { width:58mm; } @page { size:58mm auto; margin:0; } }
+      @media print {
+        html, body { width:58mm; }
+        body { padding-bottom:14mm; }
+        @page { size:58mm auto; margin:0; }
+      }
     </style>
   </head><body>
 
     <div class="logo-wrap">
       ${logoUrl
-        ? `<img class="logo-img" src="${logoUrl}" />`
+        ? `<img class="logo-img" src="${logoUrl}" onload="this.style.opacity=1" style="opacity:1" />`
         : `<div class="logo-placeholder">LOGO</div>`}
     </div>
 
@@ -4790,11 +4795,7 @@ function gerarCupomHTML(v) {
 
     <div class="gestta">
       <svg width="44" height="14" viewBox="0 0 90 28" xmlns="http://www.w3.org/2000/svg">
-        <defs><linearGradient id="gc" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style="stop-color:#6B2D5E"/>
-          <stop offset="100%" style="stop-color:#D4587A"/>
-        </linearGradient></defs>
-        <text x="2" y="22" font-family="Georgia,serif" font-size="22" font-style="italic" font-weight="700" fill="url(#gc)">Gestta</text>
+        <text x="2" y="22" font-family="Georgia,serif" font-size="22" font-style="italic" font-weight="700" fill="#000">Gestta</text>
       </svg>
     </div>
 
@@ -4830,8 +4831,8 @@ function gerarCupomHTML(v) {
 
     <div class="linha"></div>
     <div class="footer">gesttaconfeitaria.com.br</div>
-    <div class="footer">Obrigada pela preferencia!</div>
-    <br><br>
+    <div class="footer">Obrigada pela preferencia! 🍰</div>
+    <br><br><br>
   </body></html>`;
 }
 
