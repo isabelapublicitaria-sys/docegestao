@@ -1129,7 +1129,16 @@ async function abrirCliente(userId) {
         <div><div style="font-size:.65rem;color:var(--text3);margin-bottom:2px">TELEFONE</div><div style="font-weight:600;color:var(--choco)">${p.tel||'—'}</div></div>
         <div><div style="font-size:.65rem;color:var(--text3);margin-bottom:2px">E-MAIL</div><div style="font-weight:600;color:var(--choco);font-size:.82rem">${p.email||'(não informado)'}</div></div>
         <div><div style="font-size:.65rem;color:var(--text3);margin-bottom:2px">CIDADE</div><div style="font-weight:600;color:var(--choco)">${p.cidade ? p.cidade+(p.estado?', '+p.estado:'') : '—'}</div></div>
-        <div style="grid-column:1/-1"><div style="font-size:.65rem;color:var(--text3);margin-bottom:2px">USER ID</div><div style="font-family:monospace;font-size:.72rem;color:var(--text3)">${p.user_id}</div></div>
+        <div style="grid-column:1/-1;background:var(--cream2);border-radius:10px;padding:10px 14px;border:1px solid var(--cream3)">
+          <div style="font-size:.65rem;color:var(--text3);margin-bottom:4px;font-weight:600;letter-spacing:.05em">🔑 ID ÚNICO DA CONFEITARIA</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="font-family:monospace;font-size:.78rem;color:var(--choco);word-break:break-all;flex:1">${p.user_id}</div>
+            <button onclick="navigator.clipboard.writeText('${p.user_id}').then(()=>{this.textContent='✓ Copiado';setTimeout(()=>this.textContent='📋 Copiar',1500)})"
+              style="background:var(--choco);color:white;border:none;border-radius:8px;padding:5px 10px;font-size:.72rem;cursor:pointer;white-space:nowrap;font-family:'Comfortaa',sans-serif">
+              📋 Copiar
+            </button>
+          </div>
+        </div>
       </div>
     </div>
     <div class="info-box">
