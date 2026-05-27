@@ -1603,6 +1603,7 @@
             <option value="10">Novembro</option><option value="11">Dezembro</option>
           </select>
           <input type="date" class="search-input" style="flex:0;width:150px" id="vendas-data" onchange="filterVendas()" />
+          <button class="btn-sm ghost" onclick="renderVendas()" title="Recarregar vendas do servidor" style="white-space:nowrap">🔄 Recarregar</button>
         </div>
         <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%">
         <table style="min-width:600px">
@@ -3258,8 +3259,12 @@
             <option value="">— Não informado —</option>
             <option>Dinheiro</option>
             <option>PIX</option>
+            <option value="pix_mp">PIX — Mercado Pago</option>
+            <option value="pix_ip">PIX — InfinitePay</option>
             <option>Cartão de débito</option>
+            <option value="debit_card">Cartão de débito — MP/IP</option>
             <option>Cartão de crédito</option>
+            <option value="credit_card">Cartão de crédito — MP/IP</option>
             <option>Transferência</option>
             <option>Fiado</option>
           </select>
@@ -4858,7 +4863,18 @@ function renderFinanceiro() {
   const pagEl = document.getElementById('fin-pagamento');
   if (pagEl) {
     const pags = {};
-    vendasMes.forEach(v => { const p=v.pagamento||v.forma_pagamento||'—'; pags[p]=(pags[p]||0)+Number(v.total||0); });
+    const PAG_LABELS = {
+      'pix': 'PIX', 'pix_mp': 'PIX — Mercado Pago', 'pix_ip': 'PIX — InfinitePay',
+      'credit_card': 'Cartão de crédito — MP/IP', 'debit_card': 'Cartão de débito — MP/IP',
+      'account_money': 'MP — Saldo', 'bank_transfer': 'Transferência', 'cash': 'Dinheiro',
+      'Dinheiro': 'Dinheiro', 'PIX': 'PIX', 'Cartão de débito': 'Cartão de débito',
+      'Cartão de crédito': 'Cartão de crédito', 'Fiado': 'Fiado', 'Transferência': 'Transferência',
+    };
+    vendasMes.forEach(v => {
+      const raw = v.payment_method || v.pagamento || v.forma_pagamento || '—';
+      const p = PAG_LABELS[raw] || raw;
+      pags[p] = (pags[p]||0) + Number(v.total||0);
+    });
     pagEl.innerHTML = Object.entries(pags).map(([p,v]) => `
       <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--cream-dark);font-size:.82rem">
         <span>${p}</span><span style="font-weight:700;color:var(--caramel-dk)">${formatMoney(v)}</span>
@@ -4923,6 +4939,7 @@ async function renderVendas() {
 
   try {
     const uid = await getUID();
+    console.log('🔍 renderVendas uid:', uid);
     if (uid) {
       // Pega o token JWT da sessão atual (necessário para RLS)
       let authToken = SUPABASE_KEY; // fallback anon
@@ -6971,12 +6988,23 @@ function editarVenda(id) {
   // Forma de pagamento e canal
   const selPag = document.getElementById('venda-edit-pagamento');
   if (selPag) {
-    const pag = v.pagamento || v.forma_pagamento || '';
-    // Tenta match exato, senão deixa vazio
+    // Normaliza payment_method vindo do banco (MP/IP) para label legível
+    const PAG_MAP = {
+      'pix':         'PIX',
+      'pix_mp':      'pix_mp',
+      'pix_ip':      'pix_ip',
+      'credit_card': 'credit_card',
+      'debit_card':  'debit_card',
+      'account_money': 'Mercado Pago — Saldo',
+      'bank_transfer': 'Transferência',
+      'cash':        'Dinheiro',
+      'boleto':      'Boleto',
+    };
+    const rawPag = v.payment_method || v.pagamento || v.forma_pagamento || '';
+    const pag = PAG_MAP[rawPag] || rawPag;
     const opts = Array.from(selPag.options).map(o => o.value);
     selPag.value = opts.includes(pag) ? pag : '';
     if (!selPag.value && pag) {
-      // Adiciona como opção dinâmica se não existir
       const opt = document.createElement('option');
       opt.value = pag; opt.textContent = pag;
       selPag.appendChild(opt);
