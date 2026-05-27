@@ -2009,15 +2009,85 @@
         <select id="fin-ano" style="padding:8px 14px;border:2px solid var(--cream-mid);border-radius:10px;font-family:'Comfortaa',sans-serif;font-size:.85rem;background:var(--white)" onchange="renderFinanceiro()">
           <option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option>
         </select>
+        <script>
+          // Pré-seleciona mês e ano atual
+          (function(){
+            const n = new Date();
+            const ms = document.getElementById('fin-mes');
+            const ay = document.getElementById('fin-ano');
+            if(ms) ms.value = n.getMonth();
+            if(ay) ay.value = n.getFullYear();
+          })();
+        </script>
         <button class="btn-sm ghost" onclick="renderFinanceiro()">🔄 Atualizar</button>
       </div>
 
       <!-- KPIs principais -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:24px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:16px">
         <div class="stat-card caramel"><div class="stat-icon">💰</div><div class="stat-label">Faturamento Bruto</div><div class="stat-value" id="fin-faturamento">R$ 0</div><div class="stat-sub" id="fin-faturamento-sub">0 vendas</div></div>
         <div class="stat-card rose"><div class="stat-icon">📦</div><div class="stat-label">Custo de Produção</div><div class="stat-value" id="fin-custo-prod">R$ 0</div><div class="stat-sub">insumos utilizados</div></div>
         <div class="stat-card gold"><div class="stat-icon">💸</div><div class="stat-label">Custos Fixos</div><div class="stat-value" id="fin-custos-fixos">R$ 0</div><div class="stat-sub">do mês</div></div>
         <div class="stat-card choco"><div class="stat-icon">📈</div><div class="stat-label">Lucro Líquido</div><div class="stat-value" id="fin-lucro">R$ 0</div><div class="stat-sub" id="fin-margem">0% margem</div></div>
+      </div>
+
+      <!-- FLUXO DE CAIXA -->
+      <div class="chart-card" style="margin-bottom:20px">
+        <div class="chart-title">💵 Fluxo de Caixa do Mês</div>
+        <div id="fin-fluxo-caixa">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0;border-radius:12px;overflow:hidden;border:1px solid var(--cream-mid)">
+            <!-- ENTRADAS -->
+            <div style="background:#f0faf0;padding:16px 20px;border-right:1px solid var(--cream-mid)">
+              <div style="font-size:.7rem;font-weight:700;color:#2e7d32;letter-spacing:.08em;margin-bottom:10px">⬆️ ENTRADAS</div>
+              <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #c8e6c9">
+                <span style="font-size:.82rem;color:#555">Vendas do mês</span>
+                <span style="font-size:.82rem;font-weight:700;color:#2e7d32" id="fc-vendas">R$ 0</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:8px 0;margin-top:4px">
+                <span style="font-size:.85rem;font-weight:700;color:#1b5e20">Total entradas</span>
+                <span style="font-size:.85rem;font-weight:700;color:#1b5e20" id="fc-total-entradas">R$ 0</span>
+              </div>
+            </div>
+            <!-- SAÍDAS -->
+            <div style="background:#fff8f0;padding:16px 20px;border-right:1px solid var(--cream-mid)">
+              <div style="font-size:.7rem;font-weight:700;color:#e65100;letter-spacing:.08em;margin-bottom:10px">⬇️ SAÍDAS</div>
+              <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #ffe0b2">
+                <span style="font-size:.82rem;color:#555">Custo de produção</span>
+                <span style="font-size:.82rem;font-weight:600;color:#e65100" id="fc-custo-prod">R$ 0</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #ffe0b2">
+                <span style="font-size:.82rem;color:#555">Custos fixos</span>
+                <span style="font-size:.82rem;font-weight:600;color:#e65100" id="fc-custos-fixos">R$ 0</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #ffe0b2">
+                <span style="font-size:.82rem;color:#555">Pró-labore</span>
+                <span style="font-size:.82rem;font-weight:600;color:#e65100" id="fc-prolabore">R$ 0</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:8px 0;margin-top:4px">
+                <span style="font-size:.85rem;font-weight:700;color:#bf360c">Total saídas</span>
+                <span style="font-size:.85rem;font-weight:700;color:#bf360c" id="fc-total-saidas">R$ 0</span>
+              </div>
+            </div>
+            <!-- RESULTADO -->
+            <div style="padding:16px 20px;background:#fafafa">
+              <div style="font-size:.7rem;font-weight:700;color:var(--choco);letter-spacing:.08em;margin-bottom:10px">📊 RESULTADO</div>
+              <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--cream-mid)">
+                <span style="font-size:.82rem;color:#555">Lucro operacional</span>
+                <span style="font-size:.82rem;font-weight:600;color:var(--choco)" id="fc-lucro-op">R$ 0</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--cream-mid)">
+                <span style="font-size:.82rem;color:#555">(-) Pró-labore</span>
+                <span style="font-size:.82rem;font-weight:600;color:var(--rose)" id="fc-prolabore2">R$ 0</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:10px 0;margin-top:4px;border-top:2px solid var(--cream-mid)">
+                <span style="font-size:.9rem;font-weight:700;color:var(--choco)">Sobrou no caixa</span>
+                <span style="font-size:.95rem;font-weight:700" id="fc-sobrou">R$ 0</span>
+              </div>
+              <div style="text-align:right;margin-top:2px">
+                <span style="font-size:.72rem;color:var(--text-lt)" id="fc-margem-real">0% margem real</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px">
@@ -4475,12 +4545,16 @@ function removerCategoria(idx) {
 }
 
 function renderFinanceiro() {
-  const mes  = parseInt(document.getElementById('fin-mes')?.value ?? new Date().getMonth());
-  const ano  = parseInt(document.getElementById('fin-ano')?.value ?? new Date().getFullYear());
+  const now  = new Date();
+  const mesEl = document.getElementById('fin-mes');
+  const anoEl = document.getElementById('fin-ano');
 
-  // Set current month/year
-  if (document.getElementById('fin-mes')) document.getElementById('fin-mes').value = mes;
-  if (document.getElementById('fin-ano')) document.getElementById('fin-ano').value = ano;
+  // Garante mês/ano atual como padrão se não selecionado
+  if (mesEl && (mesEl.value === '' || mesEl.value === null)) mesEl.value = now.getMonth();
+  if (anoEl && (anoEl.value === '' || anoEl.value === null)) anoEl.value = now.getFullYear();
+
+  const mes = parseInt(mesEl?.value ?? now.getMonth());
+  const ano = parseInt(anoEl?.value ?? now.getFullYear());
 
   const vendasMes = db.vendas.filter(v => {
     const d = new Date(v.data);
@@ -4500,19 +4574,42 @@ function renderFinanceiro() {
     .filter(c => c.mes === mesStr)
     .reduce((s,c) => s+Number(c.valor||0), 0);
 
-  const lucro  = faturamento - custoProd - custosFixos;
-  const margem = faturamento > 0 ? (lucro/faturamento*100).toFixed(1) : 0;
+  const prolabore   = Number(db.config.prolabore || 0);
+  const lucroOp     = faturamento - custoProd - custosFixos;
+  const sobrou      = lucroOp - prolabore;
+  const margem      = faturamento > 0 ? (lucroOp/faturamento*100).toFixed(1) : 0;
+  const margemReal  = faturamento > 0 ? (sobrou/faturamento*100).toFixed(1) : 0;
+  const totalSaidas = custoProd + custosFixos + prolabore;
 
   const set = (id, v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+
+  // KPIs principais
   set('fin-faturamento', formatMoney(faturamento));
   set('fin-faturamento-sub', vendasMes.length + ' vendas');
   set('fin-custo-prod', formatMoney(custoProd));
   set('fin-custos-fixos', formatMoney(custosFixos));
-  set('fin-lucro', formatMoney(lucro));
+  set('fin-lucro', formatMoney(lucroOp));
   set('fin-margem', margem + '% margem líquida');
   if (document.getElementById('fin-lucro')) {
-    document.getElementById('fin-lucro').style.color = lucro >= 0 ? 'var(--green)' : 'var(--red)';
+    document.getElementById('fin-lucro').style.color = lucroOp >= 0 ? 'var(--green)' : 'var(--red)';
   }
+
+  // Fluxo de Caixa
+  set('fc-vendas',        formatMoney(faturamento));
+  set('fc-total-entradas',formatMoney(faturamento));
+  set('fc-custo-prod',    formatMoney(custoProd));
+  set('fc-custos-fixos',  formatMoney(custosFixos));
+  set('fc-prolabore',     formatMoney(prolabore));
+  set('fc-prolabore2',    formatMoney(prolabore));
+  set('fc-total-saidas',  formatMoney(totalSaidas));
+  set('fc-lucro-op',      formatMoney(lucroOp));
+  set('fc-sobrou',        formatMoney(sobrou));
+  set('fc-margem-real',   margemReal + '% margem real');
+
+  const sobrouEl = document.getElementById('fc-sobrou');
+  if (sobrouEl) sobrouEl.style.color = sobrou >= 0 ? '#2e7d32' : '#c0392b';
+  const totalSaidasEl = document.getElementById('fc-total-saidas');
+  if (totalSaidasEl) totalSaidasEl.style.color = '#bf360c';
 
   // Entradas vs Saídas
   const entradasSaidas = document.getElementById('fin-entradas-saidas');
@@ -4754,38 +4851,33 @@ function gerarCupomHTML(v) {
     <title>Cupom #${String(v.id).slice(-6)}</title>
     <style>
       * { margin:0; padding:0; box-sizing:border-box; }
-      html, body { width:58mm; max-width:58mm; font-family:'Courier New',Courier,monospace; font-size:10pt; color:#000; background:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-      body { padding:4mm 3mm 12mm 3mm; }
-      .linha  { border:none; border-top:1.5px dashed #000; margin:3mm 0; }
-      .logo-wrap { text-align:center; margin-bottom:2mm; padding-top:1mm; }
-      .logo-img { width:26mm; height:26mm; border-radius:50%; object-fit:cover; display:block; margin:0 auto; }
-      .logo-placeholder { width:26mm; height:26mm; border-radius:50%; background:#f0e4ec; display:inline-flex; align-items:center; justify-content:center; font-size:7pt; color:#000; font-weight:700; }
-      .empresa { font-size:12pt; font-weight:900; text-align:center; margin-bottom:1mm; color:#000; letter-spacing:0.3px; }
-      .sub     { font-size:9pt; font-weight:700; text-align:center; color:#000; line-height:1.6; }
-      .gestta  { text-align:center; margin-top:2mm; margin-bottom:1mm; }
-      .pedido  { font-size:12pt; font-weight:900; text-align:center; color:#000; }
-      .data    { font-size:9pt; font-weight:700; text-align:center; color:#000; margin-top:0.5mm; }
-      .bloco   { font-size:9.5pt; font-weight:700; line-height:1.9; color:#000; }
-      .bloco b { font-weight:900; }
+      html, body { width:58mm; max-width:58mm; font-family:'Courier New',Courier,monospace; font-size:10pt; color:#000; background:#fff; }
+      body { padding:3mm 2mm; }
+      .linha  { border:none; border-top:1px dashed #000; margin:2.5mm 0; }
+      .logo-wrap { text-align:center; margin-bottom:2mm; }
+      .logo-img { width:22mm; height:22mm; border-radius:50%; object-fit:cover; }
+      .logo-placeholder { width:22mm; height:22mm; border-radius:50%; background:#f0e4ec; display:inline-flex; align-items:center; justify-content:center; font-size:7pt; color:#6B2D5E; font-weight:700; }
+      .empresa { font-size:11pt; font-weight:700; text-align:center; margin-bottom:0.5mm; }
+      .sub     { font-size:8pt; text-align:center; color:#333; line-height:1.5; }
+      .gestta  { text-align:center; margin-top:1.5mm; }
+      .pedido  { font-size:11pt; font-weight:700; text-align:center; }
+      .data    { font-size:8pt; text-align:center; color:#444; }
+      .bloco   { font-size:9pt; line-height:1.8; }
       table    { width:100%; border-collapse:collapse; }
-      td       { font-size:9.5pt; font-weight:700; vertical-align:top; padding:1mm 0; color:#000; }
-      td.r     { text-align:right; white-space:nowrap; padding-left:2mm; font-weight:700; }
-      .tot td  { font-size:13pt; font-weight:900; padding-top:2mm; color:#000; }
-      .pag     { font-size:9pt; font-weight:700; margin-top:1.5mm; color:#000; }
-      .obs     { font-size:9pt; font-weight:700; color:#000; }
-      .footer  { font-size:8pt; font-weight:700; text-align:center; margin-top:1.5mm; color:#000; }
+      td       { font-size:9pt; vertical-align:top; padding:0.8mm 0; }
+      td.r     { text-align:right; white-space:nowrap; padding-left:2mm; }
+      .tot td  { font-size:12pt; font-weight:700; padding-top:2mm; }
+      .pag     { font-size:8pt; margin-top:1mm; }
+      .obs     { font-size:8pt; }
+      .footer  { font-size:7pt; text-align:center; margin-top:1mm; color:#555; }
       @page    { size:58mm auto; margin:0; }
-      @media print {
-        html, body { width:58mm; }
-        body { padding-bottom:14mm; }
-        @page { size:58mm auto; margin:0; }
-      }
+      @media print { html,body { width:58mm; } @page { size:58mm auto; margin:0; } }
     </style>
   </head><body>
 
     <div class="logo-wrap">
       ${logoUrl
-        ? `<img class="logo-img" src="${logoUrl}" onload="this.style.opacity=1" style="opacity:1" />`
+        ? `<img class="logo-img" src="${logoUrl}" />`
         : `<div class="logo-placeholder">LOGO</div>`}
     </div>
 
@@ -4795,7 +4887,11 @@ function gerarCupomHTML(v) {
 
     <div class="gestta">
       <svg width="44" height="14" viewBox="0 0 90 28" xmlns="http://www.w3.org/2000/svg">
-        <text x="2" y="22" font-family="Georgia,serif" font-size="22" font-style="italic" font-weight="700" fill="#000">Gestta</text>
+        <defs><linearGradient id="gc" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#6B2D5E"/>
+          <stop offset="100%" style="stop-color:#D4587A"/>
+        </linearGradient></defs>
+        <text x="2" y="22" font-family="Georgia,serif" font-size="22" font-style="italic" font-weight="700" fill="url(#gc)">Gestta</text>
       </svg>
     </div>
 
@@ -4831,8 +4927,8 @@ function gerarCupomHTML(v) {
 
     <div class="linha"></div>
     <div class="footer">gesttaconfeitaria.com.br</div>
-    <div class="footer">Obrigada pela preferencia! 🍰</div>
-    <br><br><br>
+    <div class="footer">Obrigada pela preferencia!</div>
+    <br><br>
   </body></html>`;
 }
 
@@ -5645,6 +5741,8 @@ function calcReverso() {
 function aplicarPrecoManual() {
   const precoManual = parseFloat(document.getElementById('prec-preco-manual')?.value)||0;
   if (!precoManual) { toast('Informe um preço primeiro','error'); return; }
+
+  // Calcula a margem reversa apenas para informação
   const rendimento  = Math.max(1, parseFloat(document.getElementById('prec-rendimento')?.value)||1);
   const tempo       = parseFloat(document.getElementById('prec-tempo')?.value)||0;
   const valorHora   = parseFloat(document.getElementById('prec-hora')?.value)||0;
@@ -5665,9 +5763,23 @@ function aplicarPrecoManual() {
   }
   const custoTotal = custoIngUnit + maoDeObraUnit + fixosAuto;
   const pct = custoTotal > 0 ? ((precoManual - custoTotal)/custoTotal)*100 : 0;
-  const elLucro = document.getElementById('prec-lucro');
-  if (elLucro) { elLucro.value = pct.toFixed(1); calcPreco(); }
-  toast(`Margem de ${pct.toFixed(1)}% aplicada para o preço de ${formatMoney(precoManual)}`, 'success');
+
+  // ✅ CORRETO: NÃO altera o campo de margem — apenas atualiza o preço sugerido diretamente
+  // Mostra o preço no campo de resultado e atualiza o display
+  const elPrecoSugerido = document.getElementById('r-preco-sugerido');
+  if (elPrecoSugerido) elPrecoSugerido.textContent = formatMoney(precoManual);
+
+  // Atualiza o card de preço sugerido no painel direito
+  const elPrecoBig = document.querySelector('.prec-preco-big, #prec-sugerido-val');
+  if (elPrecoBig) elPrecoBig.textContent = formatMoney(precoManual);
+
+  toast(`Preço de ${formatMoney(precoManual)} aplicado! Margem resultante: ${pct.toFixed(1)}%`, 'success');
+
+  // Limpa o campo após aplicar
+  const elInput = document.getElementById('prec-preco-manual');
+  if (elInput) elInput.value = '';
+  const elRev = document.getElementById('r-reverso');
+  if (elRev) elRev.style.display = 'none';
 }
 
 function salvarPrecificacao() {
