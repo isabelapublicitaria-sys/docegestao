@@ -3252,7 +3252,32 @@
         <button class="btn-sm ghost" style="margin-top:10px" onclick="adicionarItemVenda()">＋ Adicionar item</button>
       </div>
 
-      <div class="form-group" style="margin-top:16px">
+      <div class="form-row" style="margin-top:4px">
+        <div class="form-group">
+          <label>Forma de pagamento</label>
+          <select id="venda-edit-pagamento">
+            <option value="">— Não informado —</option>
+            <option>Dinheiro</option>
+            <option>PIX</option>
+            <option>Cartão de débito</option>
+            <option>Cartão de crédito</option>
+            <option>Transferência</option>
+            <option>Fiado</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Canal de venda</label>
+          <select id="venda-edit-canal">
+            <option value="pdv">PDV / Balcão</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="cardapio_digital">Cardápio Digital</option>
+            <option value="instagram">Instagram</option>
+            <option value="outro">Outro</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top:4px">
         <label>Observações</label>
         <textarea id="venda-edit-obs" placeholder="Observações sobre a venda..." rows="2"></textarea>
       </div>
@@ -5629,6 +5654,7 @@ async function salvarReceita() {
 // PRECIFICAÇÃO
 // ══════════════════════════════════════
 let precKitItens = []; // [{receita_id, nome, qtd, unidade, custo}]
+let precoManualAplicado = null; // Preço definido manualmente pelo usuário
 let precTabAtiva = 'calc';
 
 function switchPrecTab(tab) {
@@ -5753,6 +5779,7 @@ function renderPrecKitLista() {
 }
 
 function calcPreco() {
+  precoManualAplicado = null; // Limpa preço manual quando o usuário muda os campos
   const rendimento  = Math.max(1, parseFloat(document.getElementById('prec-rendimento')?.value)||1);
   const tempo       = parseFloat(document.getElementById('prec-tempo')?.value)||0;
   const pctLucro    = parseFloat(document.getElementById('prec-lucro')?.value)||0;
@@ -5942,6 +5969,9 @@ function aplicarPrecoManual() {
   const lucroValEl = document.getElementById('r-lucro-val');
   if (lucroValEl) lucroValEl.textContent = formatMoney(precoManual - (custoIngUnit + maoDeObraUnit + fixosAuto));
 
+  // ✅ Salva o preço manual na variável global para o salvarPrecificacao usar
+  precoManualAplicado = precoManual;
+
   toast(`Preço de ${formatMoney(precoManual)} aplicado! Margem resultante: ${pct.toFixed(1)}%`, 'success');
 
   // Limpa o campo após aplicar
@@ -5982,7 +6012,8 @@ function salvarPrecificacao() {
   }
 
   const custoTot = custoIngUnit + maoDeObraUnit + fixosAuto;
-  const preco    = custoTot * (1 + pctLucro/100);
+  // Se o usuário aplicou um preço manual, usa ele; senão calcula pela margem
+  const preco    = precoManualAplicado !== null ? precoManualAplicado : custoTot * (1 + pctLucro/100);
 
   const tipo = document.querySelector('input[name="prec-tipo"]:checked')?.value || 'fixo';
   const existing = db.precificacoes.findIndex(p => p.nome === nome);
@@ -6005,6 +6036,7 @@ function salvarPrecificacao() {
 
   saveDB();
   document.getElementById('tc-prec-saved').textContent = db.precificacoes.length;
+  precoManualAplicado = null; // Limpa após salvar
   toast(`✅ "${nome}" salvo! Preço: ${formatMoney(preco)}`, 'success');
   renderPrecSaved();
 }
@@ -6937,6 +6969,24 @@ function editarVenda(id) {
   const localISO = new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,16);
   document.getElementById('venda-edit-data').value = localISO;
 
+  // Forma de pagamento e canal
+  const selPag = document.getElementById('venda-edit-pagamento');
+  if (selPag) {
+    const pag = v.pagamento || v.forma_pagamento || '';
+    // Tenta match exato, senão deixa vazio
+    const opts = Array.from(selPag.options).map(o => o.value);
+    selPag.value = opts.includes(pag) ? pag : '';
+    if (!selPag.value && pag) {
+      // Adiciona como opção dinâmica se não existir
+      const opt = document.createElement('option');
+      opt.value = pag; opt.textContent = pag;
+      selPag.appendChild(opt);
+      selPag.value = pag;
+    }
+  }
+  const selCanal = document.getElementById('venda-edit-canal');
+  if (selCanal) selCanal.value = v.canal || 'pdv';
+
   // Itens
   renderItensVendaEdit(parseItens(v.itens));
 
@@ -7001,11 +7051,15 @@ async function salvarVendaEditada() {
     v.cliente_nome = novoNome;
   }
 
-  v.status  = document.getElementById('venda-edit-status').value;
-  v.total   = parseFloat(document.getElementById('venda-edit-total').value) || v.total;
-  v.obs     = document.getElementById('venda-edit-obs').value;
-  v.itens   = vendaEditItens;
-  v.data    = new Date(document.getElementById('venda-edit-data').value).toISOString();
+  v.status   = document.getElementById('venda-edit-status').value;
+  v.total    = parseFloat(document.getElementById('venda-edit-total').value) || v.total;
+  v.obs      = document.getElementById('venda-edit-obs').value;
+  v.itens    = vendaEditItens;
+  v.data     = new Date(document.getElementById('venda-edit-data').value).toISOString();
+  const novoPag = document.getElementById('venda-edit-pagamento')?.value || '';
+  if (novoPag) { v.pagamento = novoPag; v.forma_pagamento = novoPag; }
+  const novoCanal = document.getElementById('venda-edit-canal')?.value || '';
+  if (novoCanal) v.canal = novoCanal;
 
   saveDB();
   await syncSupabase('vendas', { ...v, itens: JSON.stringify(v.itens) });
