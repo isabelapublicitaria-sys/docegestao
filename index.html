@@ -1375,6 +1375,9 @@
       <button class="nav-item" onclick="goTo('config')">
         <span class="nav-icon">⚙️</span> Configurações
       </button>
+      <button class="nav-item" onclick="goTo('assinatura')">
+        <span class="nav-icon">💎</span> Assinatura Gestta
+      </button>
       <a id="link-cardapio-publico" href="#" onclick="abrirCardapioPublico(event)" target="_blank" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;color:rgba(255,255,255,.55);font-size:.9rem;font-weight:500;cursor:pointer;transition:var(--transition);text-decoration:none;margin-top:4px" onmouseover="this.style.background='rgba(255,255,255,.07)';this.style.color='var(--cream)'" onmouseout="this.style.background='';this.style.color='rgba(255,255,255,.55)'">
         <span style="font-size:1.1rem;width:22px;text-align:center">🛍️</span> Ver cardápio público
       </a>
@@ -1722,6 +1725,7 @@
           <option>Instrumentos de Trabalho</option>
           <option>Leites Vegetais</option>
           <option>Líquidos</option>
+          <option>Oleaginosas</option>
           <option>Outros</option>
         </select>
       </div>
@@ -2291,6 +2295,67 @@
     <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
          CONFIGURAÇÕES
     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <section class="page-content" id="page-assinatura">
+      <div style="max-width:640px;margin:0 auto">
+
+        <!-- Card principal do plano -->
+        <div id="ass-card-plano" style="background:linear-gradient(135deg,var(--choco),var(--caramel));border-radius:20px;padding:28px;color:white;margin-bottom:24px;position:relative;overflow:hidden">
+          <div style="position:absolute;top:-20px;right:-20px;font-size:6rem;opacity:.08">💎</div>
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
+            <div style="background:rgba(255,255,255,.15);border-radius:12px;padding:10px 16px;font-size:1.6rem">💎</div>
+            <div>
+              <div style="font-size:.75rem;opacity:.7;text-transform:uppercase;letter-spacing:1px">Seu plano atual</div>
+              <div style="font-size:1.4rem;font-weight:700;font-family:'Playfair Display',serif" id="ass-nome-plano">Carregando...</div>
+            </div>
+            <div id="ass-badge-plano" style="margin-left:auto;background:rgba(255,255,255,.2);border-radius:99px;padding:4px 14px;font-size:.75rem;font-weight:700"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div style="background:rgba(255,255,255,.1);border-radius:12px;padding:14px">
+              <div style="font-size:.7rem;opacity:.7;margin-bottom:4px">📅 Vencimento</div>
+              <div style="font-weight:700;font-size:.95rem" id="ass-vencimento">—</div>
+            </div>
+            <div style="background:rgba(255,255,255,.1);border-radius:12px;padding:14px">
+              <div style="font-size:.7rem;opacity:.7;margin-bottom:4px">📊 Status</div>
+              <div style="font-weight:700;font-size:.95rem" id="ass-status">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detalhes do plano -->
+        <div class="chart-card" style="margin-bottom:20px">
+          <div class="chart-title">📋 Detalhes da assinatura</div>
+          <div id="ass-detalhes" style="padding:8px 0">
+            <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--cream-dark);font-size:.85rem">
+              <span style="color:var(--text-lt)">Plano</span>
+              <span style="font-weight:700;color:var(--choco)" id="ass-det-plano">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--cream-dark);font-size:.85rem">
+              <span style="color:var(--text-lt)">Valor mensal</span>
+              <span style="font-weight:700;color:var(--choco)" id="ass-det-valor">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--cream-dark);font-size:.85rem">
+              <span style="color:var(--text-lt)">Próximo vencimento</span>
+              <span style="font-weight:700;color:var(--choco)" id="ass-det-vencimento">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:.85rem">
+              <span style="color:var(--text-lt)">Situação</span>
+              <span style="font-weight:700" id="ass-det-status">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- O que está incluído no plano -->
+        <div class="chart-card" style="margin-bottom:20px" id="ass-features-card">
+          <div class="chart-title">✨ O que está incluído</div>
+          <div id="ass-features" style="padding:8px 0"></div>
+        </div>
+
+        <!-- Ação: upgrade ou pagamento -->
+        <div id="ass-acoes" style="display:flex;flex-direction:column;gap:12px"></div>
+
+      </div>
+    </section>
+
     <section class="page-content" id="page-config">
       <div class="config-sections">
 
@@ -2994,6 +3059,7 @@
             <option>Gorduras e Óleos</option>
             <option>Ovos</option>
             <option>Frutas e Legumes</option>
+            <option>Oleaginosas</option>
             <option>Aromas e Essências</option>
             <option>Embalagens</option>
             <option>Biscoitos, Doces e Balas</option>
@@ -3002,6 +3068,7 @@
             <option>Instrumentos de Trabalho</option>
             <option>Leites Vegetais</option>
             <option>Líquidos</option>
+            <option>Oleaginosas</option>
             <option>Outros</option>
           </select>
         </div>
@@ -3811,6 +3878,7 @@ const pageConfig = {
   financeiro:{ title: 'Dashboard Financeiro', icon: null, label: null },
   metas:     { title: 'Metas',            icon: null, label: null },
   config:    { title: 'Configurações',    icon: null, label: null },
+  assinatura:{ title: 'Assinatura Gestta', icon: null, label: null },
 };
 
 let currentPage = 'dashboard';
@@ -3899,6 +3967,7 @@ function renderPage(page) {
   if (page === 'producao')   renderProducao();
   if (page === 'metas')      carregarMetas(); // busca do banco antes de renderizar
   if (page === 'config')     { carregarConfig(); setTimeout(renderHorarios, 150); }
+  if (page === 'assinatura') renderAssinatura();
 }
 
 // ══════════════════════════════════════
@@ -4544,6 +4613,103 @@ function removerCategoria(idx) {
   }
 }
 
+// ── Assinatura Gestta ────────────────────────────────────────────────────────
+function renderAssinatura() {
+  const plano = db.config.plano || 'gratis';
+  const venc  = db.config.vencimento;
+  const PLANOS_INFO = {
+    gratis: { nome: 'Plano Grátis',  cor: '#607d8b', valor: 'R$ 0/mês',  badge: 'GRÁTIS' },
+    basic:  { nome: 'Plano Basic',   cor: '#1976d2', valor: 'R$ 47/mês', badge: 'BASIC'  },
+    pro:    { nome: 'Plano Pro ⭐',  cor: '#7b3fa0', valor: 'R$ 97/mês', badge: 'PRO'    },
+  };
+  const info = PLANOS_INFO[plano] || PLANOS_INFO.gratis;
+
+  const set = (id, v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+  const setHTML = (id, v) => { const el=document.getElementById(id); if(el) el.innerHTML=v; };
+
+  set('ass-nome-plano', info.nome);
+  set('ass-badge-plano', info.badge);
+
+  // Cor do card
+  const cardEl = document.getElementById('ass-card-plano');
+  if (cardEl) {
+    const cores = { gratis:'linear-gradient(135deg,#455a64,#607d8b)', basic:'linear-gradient(135deg,#0d47a1,#1976d2)', pro:'linear-gradient(135deg,var(--choco),var(--caramel))' };
+    cardEl.style.background = cores[plano] || cores.gratis;
+  }
+
+  // Vencimento
+  let vencStr = '—';
+  let statusStr = 'Ativo';
+  let statusColor = '#2e7d32';
+  if (venc) {
+    const dv = new Date(venc);
+    const hoje = new Date();
+    const diff = Math.ceil((dv - hoje) / (1000*60*60*24));
+    vencStr = dv.toLocaleDateString('pt-BR');
+    if (diff < 0)       { statusStr = 'Vencido';         statusColor = '#c0392b'; }
+    else if (diff <= 7) { statusStr = `Vence em ${diff}d`; statusColor = '#e65100'; }
+    else if (dv.getFullYear() >= 2090) { vencStr = 'Cortesia (sem validade)'; statusStr = 'Cortesia ✨'; statusColor = '#7b3fa0'; }
+    else                { statusStr = 'Ativo ✅';         statusColor = '#2e7d32'; }
+  } else if (plano === 'gratis') {
+    vencStr = 'Sem prazo'; statusStr = 'Ativo ✅';
+  }
+
+  set('ass-vencimento', vencStr);
+  set('ass-status', statusStr);
+  const statusEl = document.getElementById('ass-status');
+  if (statusEl) statusEl.style.color = statusColor;
+
+  // Detalhes
+  set('ass-det-plano', info.nome);
+  set('ass-det-valor', info.valor);
+  set('ass-det-vencimento', vencStr);
+  const detStatus = document.getElementById('ass-det-status');
+  if (detStatus) { detStatus.textContent = statusStr; detStatus.style.color = statusColor; }
+
+  // Features do plano
+  const features = {
+    gratis: ['✅ Até 5 produtos', '✅ Cardápio digital básico', '✅ Ponto de Venda', '❌ Gestão completa', '❌ Gateway de pagamento', '❌ Dashboard Financeiro'],
+    basic:  ['✅ Até 20 produtos', '✅ Cardápio digital completo', '✅ Estoque e insumos', '✅ Fichas técnicas', '✅ Precificação e metas', '❌ Gateway de pagamento', '❌ Dashboard Financeiro Pro'],
+    pro:    ['✅ Produtos ilimitados', '✅ Tudo do Basic', '✅ Gateway de pagamento', '✅ PIX e cartão no cardápio', '✅ Dashboard Financeiro completo', '✅ Suporte prioritário'],
+  };
+  const feat = features[plano] || features.gratis;
+  setHTML('ass-features', feat.map(f => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--cream-dark);font-size:.85rem">
+      <span>${f}</span>
+    </div>`).join(''));
+
+  // Ações
+  const acoesEl = document.getElementById('ass-acoes');
+  if (!acoesEl) return;
+
+  if (plano === 'gratis') {
+    acoesEl.innerHTML = `
+      <div style="background:linear-gradient(135deg,#7b3fa0,#9c27b0);border-radius:16px;padding:20px;color:white;text-align:center">
+        <div style="font-size:1.1rem;font-weight:700;margin-bottom:6px">🚀 Quer mais recursos?</div>
+        <div style="font-size:.85rem;opacity:.8;margin-bottom:16px">Faça upgrade para Basic ou Pro e desbloqueie tudo!</div>
+        <button onclick="window.open('https://gesttaconfeitaria.com.br/cadastro.html','_blank')" style="background:white;color:#7b3fa0;border:none;border-radius:10px;padding:12px 28px;font-weight:700;font-size:.9rem;cursor:pointer">Ver planos e preços</button>
+      </div>`;
+  } else if (plano === 'basic') {
+    acoesEl.innerHTML = `
+      <div style="background:var(--white);border:2px solid var(--caramel);border-radius:16px;padding:20px;text-align:center">
+        <div style="font-size:1rem;font-weight:700;color:var(--choco);margin-bottom:6px">⭐ Upgrade para Pro</div>
+        <div style="font-size:.85rem;color:var(--text-lt);margin-bottom:16px">Gateway de pagamento, PIX no cardápio e muito mais!</div>
+        <button onclick="window.open('https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=2423cd9709d94ba08f2e2da6e6f74449','_blank')" style="background:linear-gradient(135deg,var(--caramel),var(--caramel3));color:white;border:none;border-radius:10px;padding:12px 28px;font-weight:700;font-size:.9rem;cursor:pointer">Fazer upgrade para Pro — R$ 97/mês</button>
+      </div>
+      <div style="background:var(--cream);border-radius:12px;padding:16px;font-size:.82rem;color:var(--text-lt);text-align:center">
+        💳 Para renovar ou cancelar sua assinatura, acesse o app do Mercado Pago em <strong>Meus pagamentos → Assinaturas</strong>
+      </div>`;
+  } else {
+    acoesEl.innerHTML = `
+      <div style="background:var(--cream);border-radius:12px;padding:16px;font-size:.82rem;color:var(--text-lt);text-align:center">
+        💳 Para gerenciar sua assinatura (cancelar, atualizar cartão), acesse o app do Mercado Pago em <strong>Meus pagamentos → Assinaturas</strong>
+      </div>
+      <div style="background:var(--white);border-radius:12px;padding:16px;font-size:.82rem;color:var(--text-lt)">
+        ℹ️ Em caso de dúvidas sobre sua assinatura, entre em contato pelo WhatsApp: <a href="https://wa.me/5511999999999" target="_blank" style="color:var(--caramel);font-weight:700">Suporte Gestta</a>
+      </div>`;
+  }
+}
+
 function renderFinanceiro() {
   const now  = new Date();
   const mesEl = document.getElementById('fin-mes');
@@ -4618,7 +4784,7 @@ function renderFinanceiro() {
       { label: 'Faturamento', val: faturamento, color: 'var(--caramel)', icon: '💰' },
       { label: 'Custo produção', val: custoProd, color: 'var(--rose)', icon: '📦' },
       { label: 'Custos fixos', val: custosFixos, color: '#e65100', icon: '💸' },
-      { label: 'Lucro líquido', val: Math.max(0,lucro), color: 'var(--green)', icon: '📈' },
+      { label: 'Lucro líquido', val: Math.max(0,lucroOp), color: 'var(--green)', icon: '📈' },
     ];
     const max = Math.max(...bars.map(b => b.val), 1);
     entradasSaidas.innerHTML = bars.map(b => `
@@ -5766,12 +5932,15 @@ function aplicarPrecoManual() {
 
   // ✅ CORRETO: NÃO altera o campo de margem — apenas atualiza o preço sugerido diretamente
   // Mostra o preço no campo de resultado e atualiza o display
-  const elPrecoSugerido = document.getElementById('r-preco-sugerido');
-  if (elPrecoSugerido) elPrecoSugerido.textContent = formatMoney(precoManual);
+  // Atualiza APENAS o preço sugerido final — sem tocar na margem
+  const elPrecoFinal = document.getElementById('r-preco-final');
+  if (elPrecoFinal) elPrecoFinal.textContent = formatMoney(precoManual);
 
-  // Atualiza o card de preço sugerido no painel direito
-  const elPrecoBig = document.querySelector('.prec-preco-big, #prec-sugerido-val');
-  if (elPrecoBig) elPrecoBig.textContent = formatMoney(precoManual);
+  // Esconde o comparativo de margens e mostra só o preço aplicado
+  const comparativoEl = document.querySelector('#page-precificacao .comparativo-margens, [id*="comparativo"]');
+  // Atualiza também o display r-lucro-val para refletir o novo preço
+  const lucroValEl = document.getElementById('r-lucro-val');
+  if (lucroValEl) lucroValEl.textContent = formatMoney(precoManual - (custoIngUnit + maoDeObraUnit + fixosAuto));
 
   toast(`Preço de ${formatMoney(precoManual)} aplicado! Margem resultante: ${pct.toFixed(1)}%`, 'success');
 

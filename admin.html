@@ -386,6 +386,9 @@ tbody tr:last-child td { border-bottom:none; }
       <button class="nav-item2" onclick="goAdmin('leads')">
         <span class="ni-icon">🎯</span> Leads
       </button>
+      <button class="nav-item2" onclick="goAdmin('cupons')">
+        <span class="ni-icon">🎟️</span> Cupons
+      </button>
       <button class="nav-item2" onclick="goAdmin('supabase')">
         <span class="ni-icon">⚙️</span> Supabase
       </button>
@@ -563,6 +566,19 @@ tbody tr:last-child td { border-bottom:none; }
       </div>
     </div>
 
+    <!-- SEÇÃO CUPONS -->
+    <div class="page2" id="page-cupons">
+      <div style="background:var(--white2);border-radius:14px;padding:22px;margin-bottom:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <div style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--choco)">🎟️ Cupons de Desconto</div>
+          <button class="btn-sm2 prim" onclick="abrirModalNovoCupom()">＋ Novo cupom</button>
+        </div>
+        <div id="cupons-lista">
+          <div class="loading2"><div class="spin"></div>Carregando cupons...</div>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -721,6 +737,7 @@ async function doAdminLogout() {
 const PAGE_TITLES = {
   overview: 'Visão Geral', clientes: 'Clientes',
   planos: 'Planos', banco: 'Banco de Dados', supabase: 'Configuração Supabase'
+  cupons:   '🎟️ Cupons de Desconto',
 };
 
 function goAdmin(page) {
@@ -739,6 +756,7 @@ function goAdmin(page) {
   if (page === 'planos')    renderPlanos();
   if (page === 'banco')     renderBanco();
   if (page === 'supabase')  carregarSupabaseConfig();
+  if (page === 'cupons')    carregarCupons();
 }
 
 // ════════════════════════════════════════
@@ -841,6 +859,193 @@ async function resolverAlerta(id) {
 // LEADS
 // ════════════════════════════════════════
 let allLeads = [];
+
+// ════════════════════════════════════════
+// CUPONS
+// ════════════════════════════════════════
+let allCupons = [];
+
+async function carregarCupons() {
+  const el = document.getElementById('cupons-lista');
+  if (!el) return;
+  el.innerHTML = '<div class="loading2"><div class="spin"></div>Carregando...</div>';
+  try {
+    const { data, error } = await sb.from('cupons_gestta').select('*').order('criado_em', { ascending: false });
+    if (error) throw error;
+    allCupons = data || [];
+    renderCupons();
+  } catch(e) {
+    el.innerHTML = `<div style="padding:24px;color:var(--text3);text-align:center">⚠️ Crie a tabela cupons_gestta primeiro (ver SQL abaixo)</div>
+      <pre style="background:#f5f5f5;padding:14px;border-radius:8px;font-size:.75rem;margin:12px 0;overflow:auto">CREATE TABLE IF NOT EXISTS cupons_gestta (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  codigo text UNIQUE NOT NULL,
+  desconto_pct int NOT NULL DEFAULT 15,
+  meses int NOT NULL DEFAULT 3,
+  descricao text,
+  ativo boolean DEFAULT true,
+  usos_max int DEFAULT NULL,
+  usos_atual int DEFAULT 0,
+  validade date DEFAULT NULL,
+  criado_em timestamptz DEFAULT now()
+);
+ALTER TABLE cupons_gestta ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "service_gerencia_cupons" ON cupons_gestta FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "anon_le_cupom" ON cupons_gestta FOR SELECT TO anon USING (ativo = true);</pre>`;
+  }
+}
+
+function renderCupons() {
+  const el = document.getElementById('cupons-lista');
+  if (!el) return;
+  if (!allCupons.length) {
+    el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Nenhum cupom cadastrado ainda</div>';
+    return;
+  }
+  el.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:.83rem">
+      <thead>
+        <tr style="background:var(--cream);border-radius:8px">
+          <th style="padding:10px 12px;text-align:left;color:var(--text2)">Código</th>
+          <th style="padding:10px 12px;text-align:center;color:var(--text2)">Desconto</th>
+          <th style="padding:10px 12px;text-align:center;color:var(--text2)">Meses</th>
+          <th style="padding:10px 12px;text-align:center;color:var(--text2)">Usos</th>
+          <th style="padding:10px 12px;text-align:center;color:var(--text2)">Validade</th>
+          <th style="padding:10px 12px;text-align:center;color:var(--text2)">Status</th>
+          <th style="padding:10px 12px;text-align:center;color:var(--text2)">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${allCupons.map(c => `
+          <tr style="border-bottom:1px solid var(--cream2)">
+            <td style="padding:10px 12px;font-weight:700;color:var(--choco);font-family:monospace;font-size:.9rem">${c.codigo}</td>
+            <td style="padding:10px 12px;text-align:center;color:#2e7d32;font-weight:700">${c.desconto_pct}%</td>
+            <td style="padding:10px 12px;text-align:center">${c.meses} ${c.meses===1?'mês':'meses'}</td>
+            <td style="padding:10px 12px;text-align:center">${c.usos_atual||0}${c.usos_max?'/'+c.usos_max:''}</td>
+            <td style="padding:10px 12px;text-align:center">${c.validade ? new Date(c.validade).toLocaleDateString('pt-BR') : 'Sem prazo'}</td>
+            <td style="padding:10px 12px;text-align:center">
+              <span style="background:${c.ativo?'#e8f5e9':'#ffebee'};color:${c.ativo?'#2e7d32':'#c0392b'};border-radius:99px;padding:3px 10px;font-size:.72rem;font-weight:700">
+                ${c.ativo ? '✅ Ativo' : '🔴 Inativo'}
+              </span>
+            </td>
+            <td style="padding:10px 12px;text-align:center;display:flex;gap:6px;justify-content:center">
+              <button onclick="toggleCupom('${c.id}',${!c.ativo})" class="btn-sm2 ${c.ativo?'':'prim'}" style="font-size:.72rem;padding:4px 8px">
+                ${c.ativo ? '🔴 Desativar' : '✅ Ativar'}
+              </button>
+              <button onclick="editarCupom('${c.id}')" class="btn-sm2 ghost" style="font-size:.72rem;padding:4px 8px">✏️</button>
+              <button onclick="excluirCupom('${c.id}','${c.codigo}')" class="btn-sm2" style="font-size:.72rem;padding:4px 8px;background:#ffebee;color:#c0392b;border:none;cursor:pointer">🗑️</button>
+            </td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+async function toggleCupom(id, novoStatus) {
+  const { error } = await sb.from('cupons_gestta').update({ ativo: novoStatus }).eq('id', id);
+  if (error) return toast2('Erro ao atualizar: ' + error.message, 'error');
+  toast2(novoStatus ? 'Cupom ativado!' : 'Cupom desativado!', 'success');
+  carregarCupons();
+}
+
+async function excluirCupom(id, codigo) {
+  if (!confirm(`Excluir cupom "${codigo}"?`)) return;
+  const { error } = await sb.from('cupons_gestta').delete().eq('id', id);
+  if (error) return toast2('Erro ao excluir', 'error');
+  toast2('Cupom excluído', 'success');
+  carregarCupons();
+}
+
+function editarCupom(id) {
+  const c = allCupons.find(x => x.id === id);
+  if (!c) return;
+  abrirModalNovoCupom(c);
+}
+
+function abrirModalNovoCupom(cupom = null) {
+  // Cria modal dinâmico
+  const isEdicao = !!cupom;
+  const existente = document.getElementById('modal-cupom');
+  if (existente) existente.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'modal-cupom';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:18px;padding:28px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.2)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <div style="font-family:'Playfair Display',serif;font-size:1.1rem;color:#3e1f1f">${isEdicao ? '✏️ Editar Cupom' : '🎟️ Novo Cupom'}</div>
+        <button onclick="document.getElementById('modal-cupom').remove()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#999">✕</button>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div>
+          <label style="font-size:.78rem;font-weight:600;color:#7a5068;display:block;margin-bottom:5px">Código do cupom *</label>
+          <input id="nc-codigo" type="text" value="${cupom?.codigo||''}" placeholder="Ex: MARIA15" style="width:100%;padding:10px 14px;border:2px solid #ecddd6;border-radius:10px;font-size:.9rem;text-transform:uppercase;box-sizing:border-box" oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <label style="font-size:.78rem;font-weight:600;color:#7a5068;display:block;margin-bottom:5px">Desconto (%)</label>
+            <input id="nc-desconto" type="number" value="${cupom?.desconto_pct||15}" min="1" max="100" style="width:100%;padding:10px 14px;border:2px solid #ecddd6;border-radius:10px;font-size:.9rem;box-sizing:border-box">
+          </div>
+          <div>
+            <label style="font-size:.78rem;font-weight:600;color:#7a5068;display:block;margin-bottom:5px">Meses de desconto</label>
+            <input id="nc-meses" type="number" value="${cupom?.meses||3}" min="1" max="24" style="width:100%;padding:10px 14px;border:2px solid #ecddd6;border-radius:10px;font-size:.9rem;box-sizing:border-box">
+          </div>
+        </div>
+        <div>
+          <label style="font-size:.78rem;font-weight:600;color:#7a5068;display:block;margin-bottom:5px">Descrição (opcional)</label>
+          <input id="nc-desc" type="text" value="${cupom?.descricao||''}" placeholder="Ex: Cupom da Nanda Caccia" style="width:100%;padding:10px 14px;border:2px solid #ecddd6;border-radius:10px;font-size:.9rem;box-sizing:border-box">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <label style="font-size:.78rem;font-weight:600;color:#7a5068;display:block;margin-bottom:5px">Máximo de usos (0 = ilimitado)</label>
+            <input id="nc-usos" type="number" value="${cupom?.usos_max||0}" min="0" style="width:100%;padding:10px 14px;border:2px solid #ecddd6;border-radius:10px;font-size:.9rem;box-sizing:border-box">
+          </div>
+          <div>
+            <label style="font-size:.78rem;font-weight:600;color:#7a5068;display:block;margin-bottom:5px">Validade (opcional)</label>
+            <input id="nc-validade" type="date" value="${cupom?.validade||''}" style="width:100%;padding:10px 14px;border:2px solid #ecddd6;border-radius:10px;font-size:.9rem;box-sizing:border-box">
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <input type="checkbox" id="nc-ativo" ${cupom ? (cupom.ativo ? 'checked' : '') : 'checked'} style="width:18px;height:18px;cursor:pointer">
+          <label for="nc-ativo" style="font-size:.85rem;color:#3e1f1f;cursor:pointer">Cupom ativo</label>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:20px">
+        <button onclick="document.getElementById('modal-cupom').remove()" style="flex:1;padding:12px;background:#f5f5f5;border:none;border-radius:10px;cursor:pointer;font-size:.9rem">Cancelar</button>
+        <button onclick="salvarCupom('${cupom?.id||''}')" style="flex:1;padding:12px;background:linear-gradient(135deg,#c08040,#e8a060);color:white;border:none;border-radius:10px;cursor:pointer;font-size:.9rem;font-weight:700">
+          ${isEdicao ? '💾 Salvar' : '🎟️ Criar cupom'}
+        </button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function salvarCupom(id) {
+  const codigo   = document.getElementById('nc-codigo')?.value.trim().toUpperCase();
+  const desconto = parseInt(document.getElementById('nc-desconto')?.value) || 15;
+  const meses    = parseInt(document.getElementById('nc-meses')?.value) || 3;
+  const descricao= document.getElementById('nc-desc')?.value.trim() || null;
+  const usosMax  = parseInt(document.getElementById('nc-usos')?.value) || null;
+  const validade = document.getElementById('nc-validade')?.value || null;
+  const ativo    = document.getElementById('nc-ativo')?.checked ?? true;
+
+  if (!codigo) return toast2('Informe o código do cupom', 'error');
+
+  const payload = { codigo, desconto_pct: desconto, meses, descricao, usos_max: usosMax || null, validade: validade || null, ativo };
+
+  let error;
+  if (id) {
+    ({ error } = await sb.from('cupons_gestta').update(payload).eq('id', id));
+  } else {
+    ({ error } = await sb.from('cupons_gestta').insert(payload));
+  }
+
+  if (error) return toast2('Erro: ' + (error.message.includes('unique') ? 'Código já existe!' : error.message), 'error');
+  toast2(id ? 'Cupom atualizado!' : 'Cupom criado!', 'success');
+  document.getElementById('modal-cupom')?.remove();
+  carregarCupons();
+}
 
 async function carregarLeads() {
   try {

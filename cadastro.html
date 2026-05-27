@@ -325,7 +325,7 @@ body { font-family: 'Comfortaa', sans-serif; background: var(--cream); color: va
           <div id="cupom-wrap" style="display:none;margin-bottom:12px">
             <label style="font-size:.78rem;color:#7a5068;font-weight:600;display:block;margin-bottom:6px">Cupom de desconto (opcional)</label>
             <div style="display:flex;gap:8px">
-              <input type="text" id="cupom-input" placeholder="Ex: NANDA15"
+              <input type="text" id="cupom-input" placeholder=""
                 style="flex:1;padding:10px 14px;border:2px solid #ecdcbe;border-radius:10px;font-family:'Comfortaa',sans-serif;font-size:.85rem;text-transform:uppercase;outline:none"
                 oninput="this.value=this.value.toUpperCase()" />
               <button type="button" onclick="aplicarCupom()"
@@ -378,11 +378,30 @@ const MP_PLANOS = {
 };
 
 // ── Cupons de desconto ─────────────────────────────────────────
-// 15% de desconto por 3 meses
-const CUPONS = {
-  'NANDA15': { desconto: 15, meses: 3, nome: 'Nanda' },
-  'TALITA15': { desconto: 15, meses: 3, nome: 'Talita' },
+// Cupons dinâmicos do banco + fallback hardcoded
+let CUPONS = {
+  'NANDA15': { desconto: 15, meses: 3, nome: 'Nanda Caccia' },
+  'TALITA15': { desconto: 15, meses: 3, nome: 'Talita Maeda' },
 };
+
+// Carrega cupons ativos do Supabase (substitui os hardcoded se a tabela existir)
+async function carregarCuponsDB() {
+  try {
+    const res = await fetch(
+      'https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/cupons_gestta?ativo=eq.true&select=codigo,desconto_pct,meses,descricao',
+      { headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc0MTMzMzEsImV4cCI6MjA2Mjk4OTMzMX0.nh_6HNZbQMFEVZSEHLhyNgVgSGY7sLWJzWxdHFGvoBQ' } }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.length > 0) {
+        const novo = {};
+        data.forEach(c => { novo[c.codigo] = { desconto: c.desconto_pct, meses: c.meses, nome: c.descricao || c.codigo }; });
+        CUPONS = novo;
+      }
+    }
+  } catch(e) { /* usa hardcoded */ }
+}
+carregarCuponsDB();
 
 const PLANOS = {
   gratis: { nome: 'Grátis',  preco: 'R$ 0/mês',  precoNum: 0,  icon: '🆓' },
@@ -430,20 +449,46 @@ function scrollToPlans() {
   document.getElementById('plans-grid').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function aplicarCupom() {
+async function aplicarCupom() {
   const codigo = (document.getElementById('cupom-input')?.value || '').trim().toUpperCase();
   const msgEl  = document.getElementById('cupom-msg');
+  const btnAplicar = document.querySelector('#cupom-wrap button');
 
   if (!codigo) { msgEl.textContent = 'Digite um cupom'; msgEl.style.color = '#c0392b'; return; }
 
-  const cupom = CUPONS[codigo];
+  msgEl.textContent = 'Verificando...';
+  msgEl.style.color = '#888';
+  if (btnAplicar) btnAplicar.disabled = true;
+
+  // Tenta no dicionário local primeiro
+  let cupom = CUPONS[codigo];
+
+  // Se não encontrou, busca direto no Supabase
   if (!cupom) {
-    msgEl.textContent = 'Cupom inválido';
+    try {
+      const res = await fetch(
+        `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/cupons_gestta?codigo=eq.${encodeURIComponent(codigo)}&ativo=eq.true&select=codigo,desconto_pct,meses,descricao&limit=1`,
+        { headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc0MTMzMzEsImV4cCI6MjA2Mjk4OTMzMX0.nh_6HNZbQMFEVZSEHLhyNgVgSGY7sLWJzWxdHFGvoBQ' } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.length > 0) {
+          const c = data[0];
+          cupom = { desconto: c.desconto_pct, meses: c.meses, nome: c.descricao || c.codigo };
+        }
+      }
+    } catch(e) { /* ignora */ }
+  }
+
+  if (btnAplicar) btnAplicar.disabled = false;
+
+  if (!cupom) {
+    msgEl.textContent = 'Cupom inválido ou expirado';
     msgEl.style.color = '#c0392b';
     cupomAtivo = null;
   } else {
     cupomAtivo = cupom;
-    msgEl.textContent = `✅ Cupom de ${cupom.nome} aplicado! ${cupom.desconto}% off por ${cupom.meses} meses`;
+    msgEl.textContent = `✅ ${cupom.nome ? 'Cupom de ' + cupom.nome + ' aplicado!' : 'Cupom aplicado!'} ${cupom.desconto}% off por ${cupom.meses} ${cupom.meses===1?'mês':'meses'}`;
     msgEl.style.color = '#2e7d32';
     atualizarInfoPlano();
   }
@@ -517,7 +562,10 @@ async function doCadastro() {
     await registrarPlano(uid, userJWT, planoSelecionado, 'pendente');
 
     // Redireciona para checkout do MP
-    window.location.href = `https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=${mpPlanId}&external_reference=${uid}&back_url=${retorno}`;
+    // external_reference inclui cupom para o webhook aplicar desconto
+    const extRef = cupomAtivo && cupomCod ? `${uid}|${cupomCod}` : uid;
+    const extRefEnc = encodeURIComponent(extRef);
+    window.location.href = `https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=${mpPlanId}&external_reference=${extRefEnc}&back_url=${retorno}`;
 
   } catch(e) {
     let msg = e.message;
