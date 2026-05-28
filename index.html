@@ -2054,6 +2054,7 @@
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:16px">
         <div class="stat-card caramel"><div class="stat-icon">💰</div><div class="stat-label">Faturamento Bruto</div><div class="stat-value" id="fin-faturamento">R$ 0</div><div class="stat-sub" id="fin-faturamento-sub">0 vendas</div></div>
         <div class="stat-card rose"><div class="stat-icon">📦</div><div class="stat-label">Custo de Produção</div><div class="stat-value" id="fin-custo-prod">R$ 0</div><div class="stat-sub">insumos utilizados</div></div>
+        <div class="stat-card" style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-left:3px solid #e65100"><div class="stat-icon">🧂</div><div class="stat-label">Insumos Comprados</div><div class="stat-value" id="fin-custo-insumos" style="color:#e65100">R$ 0</div><div class="stat-sub" id="fin-custo-insumos-sub">0 compras lançadas</div></div>
         <div class="stat-card gold"><div class="stat-icon">💸</div><div class="stat-label">Custos Fixos</div><div class="stat-value" id="fin-custos-fixos">R$ 0</div><div class="stat-sub">do mês</div></div>
         <div class="stat-card choco"><div class="stat-icon">📈</div><div class="stat-label">Lucro Líquido</div><div class="stat-value" id="fin-lucro">R$ 0</div><div class="stat-sub" id="fin-margem">0% margem</div></div>
       </div>
@@ -2079,8 +2080,16 @@
             <div style="background:#fff8f0;padding:16px 20px;border-right:1px solid var(--cream-mid)">
               <div style="font-size:.7rem;font-weight:700;color:#e65100;letter-spacing:.08em;margin-bottom:10px">⬇️ SAÍDAS</div>
               <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #ffe0b2">
-                <span style="font-size:.82rem;color:#555">Custo de produção</span>
-                <span style="font-size:.82rem;font-weight:600;color:#e65100" id="fc-custo-prod">R$ 0</span>
+                <span style="font-size:.82rem;color:#555">🧂 Insumos comprados</span>
+                <span style="font-size:.82rem;font-weight:600;color:#e65100" id="fc-custo-insumos">R$ 0</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #ffe0b2">
+                <span style="font-size:.82rem;color:#555">📦 Embalagens compradas</span>
+                <span style="font-size:.82rem;font-weight:600;color:#e65100" id="fc-custo-embalagens">R$ 0</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e65100">
+                <span style="font-size:.82rem;font-weight:700;color:#555">Total compras</span>
+                <span style="font-size:.82rem;font-weight:700;color:#e65100" id="fc-custo-total-compras">R$ 0</span>
               </div>
               <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #ffe0b2">
                 <span style="font-size:.82rem;color:#555">Custos fixos</span>
@@ -4780,7 +4789,9 @@ function renderFinanceiro() {
   });
 
   const faturamento = vendasMes.reduce((s,v) => s+Number(v.total||0), 0);
-  const custoProd   = vendasMes.reduce((s,v) => {
+
+  // Custo de produção — KPI apenas, não entra no fluxo de caixa
+  const custoProd = vendasMes.reduce((s,v) => {
     return s + parseItens(v.itens).reduce((si,i) => {
       const p = db.produtos.find(p => p.nome===i.nome||p.id===i.id);
       return si + (p?.custo||0)*(i.qty||1);
@@ -4788,41 +4799,66 @@ function renderFinanceiro() {
   }, 0);
 
   const mesStr = `${ano}-${String(mes+1).padStart(2,'0')}`;
+
+  // Custo de insumos comprados no mês (movimentos de entrada/compra)
+  const movsMes = (db.movimentos||[]).filter(m => {
+    const d = new Date(m.criado_em);
+    return d.getMonth()===mes && d.getFullYear()===ano && (m.tipo==='entrada'||m.tipo==='compra');
+  });
+
+  // Separar por categoria: insumos vs embalagens
+  const CATS_EMBAL = ['embalagens','embalagem','Embalagens'];
+  const custoInsumosMes  = movsMes.filter(m => {
+    const ins = db.insumos.find(i => i.id===m.insumo_id||i.nome===m.insumo_nome);
+    return !ins || !(ins.categoria||'').toLowerCase().includes('embalagem');
+  }).reduce((s,m) => s + Number(m.custo_total||0), 0);
+
+  const custoEmbalagensMes = movsMes.filter(m => {
+    const ins = db.insumos.find(i => i.id===m.insumo_id||i.nome===m.insumo_nome);
+    return ins && (ins.categoria||'').toLowerCase().includes('embalagem');
+  }).reduce((s,m) => s + Number(m.custo_total||0), 0);
+
+  const custoComprasMes = custoInsumosMes + custoEmbalagensMes;
+
   const custosFixos = (db.custos_fixos_itens||[])
     .filter(c => c.mes === mesStr)
     .reduce((s,c) => s+Number(c.valor||0), 0);
 
   const prolabore   = Number(db.config.prolabore || 0);
-  const lucroOp     = faturamento - custoProd - custosFixos;
+  const lucroOp     = faturamento - custoComprasMes - custosFixos;
   const sobrou      = lucroOp - prolabore;
   const margem      = faturamento > 0 ? (lucroOp/faturamento*100).toFixed(1) : 0;
   const margemReal  = faturamento > 0 ? (sobrou/faturamento*100).toFixed(1) : 0;
-  const totalSaidas = custoProd + custosFixos + prolabore;
+  const totalSaidas = custoComprasMes + custosFixos + prolabore;
 
   const set = (id, v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
 
   // KPIs principais
-  set('fin-faturamento', formatMoney(faturamento));
-  set('fin-faturamento-sub', vendasMes.length + ' vendas');
-  set('fin-custo-prod', formatMoney(custoProd));
-  set('fin-custos-fixos', formatMoney(custosFixos));
-  set('fin-lucro', formatMoney(lucroOp));
-  set('fin-margem', margem + '% margem líquida');
+  set('fin-faturamento',      formatMoney(faturamento));
+  set('fin-faturamento-sub',  vendasMes.length + ' vendas');
+  set('fin-custo-prod',    formatMoney(custoProd));
+  set('fin-custo-insumos',    formatMoney(custoComprasMes));
+  set('fin-custo-insumos-sub', movsMes.length + ' compra(s) lançada(s)');
+  set('fin-custos-fixos',     formatMoney(custosFixos));
+  set('fin-lucro',            formatMoney(lucroOp));
+  set('fin-margem',           margem + '% margem líquida');
   if (document.getElementById('fin-lucro')) {
     document.getElementById('fin-lucro').style.color = lucroOp >= 0 ? 'var(--green)' : 'var(--red)';
   }
 
   // Fluxo de Caixa
-  set('fc-vendas',        formatMoney(faturamento));
-  set('fc-total-entradas',formatMoney(faturamento));
-  set('fc-custo-prod',    formatMoney(custoProd));
-  set('fc-custos-fixos',  formatMoney(custosFixos));
-  set('fc-prolabore',     formatMoney(prolabore));
-  set('fc-prolabore2',    formatMoney(prolabore));
-  set('fc-total-saidas',  formatMoney(totalSaidas));
-  set('fc-lucro-op',      formatMoney(lucroOp));
-  set('fc-sobrou',        formatMoney(sobrou));
-  set('fc-margem-real',   margemReal + '% margem real');
+  set('fc-vendas',             formatMoney(faturamento));
+  set('fc-total-entradas',     formatMoney(faturamento));
+  set('fc-custo-insumos',      formatMoney(custoInsumosMes));
+  set('fc-custo-embalagens',   formatMoney(custoEmbalagensMes));
+  set('fc-custo-total-compras',formatMoney(custoComprasMes));
+  set('fc-custos-fixos',       formatMoney(custosFixos));
+  set('fc-prolabore',          formatMoney(prolabore));
+  set('fc-prolabore2',         formatMoney(prolabore));
+  set('fc-total-saidas',       formatMoney(totalSaidas));
+  set('fc-lucro-op',           formatMoney(lucroOp));
+  set('fc-sobrou',             formatMoney(sobrou));
+  set('fc-margem-real',        margemReal + '% margem real');
 
   const sobrouEl = document.getElementById('fc-sobrou');
   if (sobrouEl) sobrouEl.style.color = sobrou >= 0 ? '#2e7d32' : '#c0392b';
@@ -4834,7 +4870,8 @@ function renderFinanceiro() {
   if (entradasSaidas) {
     const bars = [
       { label: 'Faturamento', val: faturamento, color: 'var(--caramel)', icon: '💰' },
-      { label: 'Custo produção', val: custoProd, color: 'var(--rose)', icon: '📦' },
+      { label: 'Insumos comprados', val: custoInsumosMes, color: 'var(--rose)', icon: '🧂' },
+      { label: 'Embalagens', val: custoEmbalagensMes, color: '#e65100', icon: '📦' },
       { label: 'Custos fixos', val: custosFixos, color: '#e65100', icon: '💸' },
       { label: 'Lucro líquido', val: Math.max(0,lucroOp), color: 'var(--green)', icon: '📈' },
     ];
