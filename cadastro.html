@@ -562,10 +562,9 @@ async function doCadastro() {
     await registrarPlano(uid, userJWT, planoSelecionado, 'pendente');
 
     // Redireciona para checkout do MP
-    // external_reference inclui cupom para o webhook aplicar desconto
-    const extRef = cupomAtivo && cupomCod ? `${uid}|${cupomCod}` : uid;
-    const extRefEnc = encodeURIComponent(extRef);
-    window.location.href = `https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=${mpPlanId}&external_reference=${extRefEnc}&back_url=${retorno}`;
+    // external_reference: só o uid (MP não aceita caracteres especiais)
+    // O cupom já foi salvo em cadastro_leads — o webhook busca de lá pelo user_id
+    window.location.href = `https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=${mpPlanId}&external_reference=${encodeURIComponent(uid)}&back_url=${retorno}`;
 
   } catch(e) {
     let msg = e.message;
