@@ -5563,26 +5563,50 @@ function renderReceitaInsumoLista() {
 
 async function recalcularTodasFichas() {
   let atualizadas = 0;
+  let semMatch    = new Set();
+
   db.receitas = db.receitas.map(r => {
     const novaLista = (r.insumos_lista || []).map(x => {
-      // Busca insumo atual pelo id ou nome
+      // Normaliza quantidade — receitas importadas podem usar 'quantidade' ou 'qtd'
+      const qtd = parseFloat(x.qtd || x.quantidade || 0);
+
+      // Busca insumo: 1) por insumo_id, 2) por nome exato, 3) por nome normalizado
+      const normNome = (s) => (s||'').toLowerCase().trim()
+        .replace(/\s*\(g\)\s*/g,' ').replace(/\s*\(ml\)\s*/g,' ')
+        .replace(/\s+/g,' ').trim();
+
       const insumo = db.insumos.find(i =>
         i.id === x.insumo_id ||
-        (i.nome||'').toLowerCase().trim() === (x.nome||'').toLowerCase().trim()
+        (i.nome||'').toLowerCase().trim() === (x.nome||'').toLowerCase().trim() ||
+        normNome(i.nome) === normNome(x.nome)
       );
-      if (!insumo) return x;
-      const novoCustoUnit  = insumo.custo_unit;
-      const novoCustoTotal = novoCustoUnit * parseFloat(x.qtd||0);
-      return { ...x, custo_unit: novoCustoUnit, custo_total: novoCustoTotal };
+
+      if (!insumo) {
+        semMatch.add(x.nome);
+        return { ...x, qtd }; // mantém sem custo
+      }
+
+      const novoCustoUnit  = parseFloat(insumo.custo_unit) || 0;
+      const novoCustoTotal = novoCustoUnit * qtd;
+      return { ...x, qtd, custo_unit: novoCustoUnit, custo_total: novoCustoTotal };
     });
-    const novoCusto = novaLista.reduce((s,x) => s + (x.custo_total||0), 0);
+
+    const novoCusto = novaLista.reduce((s,x) => s + (parseFloat(x.custo_total)||0), 0);
     if (Math.abs(novoCusto - (r.custo||0)) > 0.001) atualizadas++;
     return { ...r, insumos_lista: novaLista, custo: novoCusto };
   });
+
   saveDB();
-  for (const r of db.receitas) { await syncSupabase('receitas', r); }
+  // Salva no Supabase em paralelo (mais rápido)
+  await Promise.all(db.receitas.map(r => syncSupabase('receitas', r)));
   renderReceitas();
-  toast(`✅ ${atualizadas} ficha(s) recalculada(s) com preços atuais!`, 'success');
+
+  if (semMatch.size > 0) {
+    console.warn('Ingredientes sem insumo correspondente:', [...semMatch]);
+    toast(`✅ ${atualizadas} ficha(s) recalculada(s)! ⚠️ ${semMatch.size} ingrediente(s) sem match (ver console).`, 'success');
+  } else {
+    toast(`✅ ${atualizadas} ficha(s) recalculada(s) com preços atuais!`, 'success');
+  }
 }
 
 function setFichasView(v) {
