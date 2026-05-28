@@ -1745,13 +1745,21 @@
          RECEITAS
     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
     <section class="page-content" id="page-receitas">
-      <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+      <!-- Toolbar fichas -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+        <input id="fichas-search" class="search-input" placeholder="🔍 Buscar por nome ou insumo..." oninput="renderReceitas()" style="flex:1;min-width:180px"/>
+        <div style="display:flex;gap:4px;background:var(--cream);border-radius:8px;padding:3px">
+          <button id="fichas-btn-grid" onclick="setFichasView('grid')" title="Cards"
+            style="background:var(--white);border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:.85rem;box-shadow:var(--shadow)">⊞</button>
+          <button id="fichas-btn-lista" onclick="setFichasView('lista')" title="Lista"
+            style="background:none;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:.85rem;color:var(--text-lt)">☰</button>
+        </div>
         <button class="btn-sm ghost" onclick="recalcularTodasFichas()" style="font-size:.78rem">
-          🔄 Recalcular custos com insumos atuais
+          🔄 Recalcular custos
         </button>
       </div>
-      <div class="receita-grid" id="receita-grid">
-        <div class="empty-state" style="grid-column:1/-1">
+      <div id="receita-grid">
+        <div class="empty-state">
           <div class="icon">📖</div>
           <h3>Nenhuma ficha técnica</h3>
           <p>Cadastre as receitas dos seus produtos com custos e ingredientes</p>
@@ -5562,19 +5570,56 @@ async function recalcularTodasFichas() {
   toast(`✅ ${atualizadas} ficha(s) recalculada(s) com preços atuais!`, 'success');
 }
 
+function setFichasView(v) {
+  localStorage.setItem('fichasView', v);
+  renderReceitas();
+}
+
 function renderReceitas() {
+  const view   = localStorage.getItem('fichasView') || 'grid';
+  const busca  = (document.getElementById('fichas-search')?.value || '').toLowerCase().trim();
   const colors = ['#f5e0c8','#fce4d6','#fdf0e0','#f8dfd0','#fde8d0'];
-  document.getElementById('receita-grid').innerHTML = db.receitas.length ?
-    db.receitas.map((r,i) => {
+  const grid   = document.getElementById('receita-grid');
+  if (!grid) return;
+
+  // Atualiza estado visual dos botões sem loop
+  const btnG2 = document.getElementById('fichas-btn-grid');
+  const btnL2 = document.getElementById('fichas-btn-lista');
+  if (btnG2) { btnG2.style.background = view==='grid'?'var(--white)':'none'; btnG2.style.boxShadow = view==='grid'?'var(--shadow)':'none'; btnG2.style.color = view==='grid'?'var(--choco)':'var(--text-lt)'; }
+  if (btnL2) { btnL2.style.background = view==='lista'?'var(--white)':'none'; btnL2.style.boxShadow = view==='lista'?'var(--shadow)':'none'; btnL2.style.color = view==='lista'?'var(--choco)':'var(--text-lt)'; }
+
+  // Filtra por nome OU por nome de insumo
+  let lista = db.receitas || [];
+  if (busca) {
+    lista = lista.filter(r => {
+      const nomeMatch = r.nome.toLowerCase().includes(busca);
+      const insumoMatch = (r.insumos_lista||[]).some(x => x.nome.toLowerCase().includes(busca));
+      return nomeMatch || insumoMatch;
+    });
+  }
+
+  if (!lista.length) {
+    grid.className = '';
+    grid.innerHTML = `<div class="empty-state"><div class="icon">📖</div><h3>${busca ? 'Nenhuma receita encontrada' : 'Nenhuma ficha técnica'}</h3><p>${busca ? 'Tente outro nome ou insumo' : 'Cadastre as receitas dos seus produtos'}</p></div>`;
+    return;
+  }
+
+  if (view === 'grid') {
+    grid.className = 'receita-grid';
+    grid.innerHTML = lista.map((r,i) => {
       const custoTotal = (r.insumos_lista||[]).reduce((s,x) => s + (x.custo_total||0), 0) || r.custo || 0;
       const nInsumos   = (r.insumos_lista||[]).length;
+      // Destaca termo buscado no nome
+      const nomeHtml = busca && r.nome.toLowerCase().includes(busca)
+        ? r.nome.replace(new RegExp(busca, 'gi'), m => `<mark style="background:#ffe082;border-radius:2px">${m}</mark>`)
+        : r.nome;
       return `
       <div class="receita-card">
         <div class="receita-banner" style="background:${colors[i%colors.length]};font-size:1.5rem;font-weight:700;color:var(--choco-mid);font-family:'Playfair Display',serif;padding:0 16px;text-align:center">
           ${r.nome.charAt(0).toUpperCase()}
         </div>
         <div class="receita-body">
-          <div class="receita-name">${r.nome}</div>
+          <div class="receita-name">${nomeHtml}</div>
           <div class="receita-tags">
             <span class="tag">${r.dificuldade||'Fácil'}</span>
             <span class="tag">⏱ ${r.tempo||0} min</span>
@@ -5583,11 +5628,15 @@ function renderReceitas() {
           </div>
           ${nInsumos ? `
           <div style="margin-top:8px;display:flex;flex-direction:column;gap:3px;max-height:70px;overflow:hidden">
-            ${(r.insumos_lista||[]).slice(0,3).map(x => `
-              <div style="font-size:0.75rem;color:var(--text-lt);display:flex;justify-content:space-between">
-                <span>${x.nome} — ${x.qtd} ${x.unidade}</span>
+            ${(r.insumos_lista||[]).slice(0,3).map(x => {
+              const ingHtml = busca && x.nome.toLowerCase().includes(busca)
+                ? `<mark style="background:#ffe082;border-radius:2px">${x.nome}</mark>`
+                : x.nome;
+              return `<div style="font-size:0.75rem;color:var(--text-lt);display:flex;justify-content:space-between">
+                <span>${ingHtml} — ${x.qtd} ${x.unidade}</span>
                 <span style="color:var(--caramel-dk)">${formatMoney(x.custo_total)}</span>
-              </div>`).join('')}
+              </div>`;
+            }).join('')}
             ${nInsumos > 3 ? `<div style="font-size:0.72rem;color:var(--text-lt)">+ ${nInsumos-3} mais...</div>` : ''}
           </div>` : ''}
         </div>
@@ -5598,8 +5647,57 @@ function renderReceitas() {
             <button class="btn-icon danger" onclick="excluirReceita('${r.id}')">🗑</button>
           </div>
         </div>
-      </div>`}).join('') :
-    '<div class="empty-state" style="grid-column:1/-1"><div class="icon">📖</div><h3>Nenhuma ficha técnica</h3><p>Cadastre as receitas dos seus produtos</p></div>';
+      </div>`;
+    }).join('');
+
+  } else {
+    // ── VISÃO LISTA ──────────────────────────────────────────────────
+    grid.className = '';
+    grid.innerHTML = `
+      <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden">
+        <table style="width:100%;border-collapse:collapse;font-size:.85rem">
+          <thead>
+            <tr style="background:var(--cream);border-bottom:2px solid var(--cream-dark)">
+              <th style="padding:12px 16px;text-align:left;color:var(--text-mid);font-weight:600">Receita</th>
+              <th style="padding:12px 16px;text-align:center;color:var(--text-mid);font-weight:600" class="hide-mobile">Tempo</th>
+              <th style="padding:12px 16px;text-align:center;color:var(--text-mid);font-weight:600" class="hide-mobile">Porções</th>
+              <th style="padding:12px 16px;text-align:center;color:var(--text-mid);font-weight:600" class="hide-mobile">Insumos</th>
+              <th style="padding:12px 16px;text-align:right;color:var(--text-mid);font-weight:600">Custo total</th>
+              <th style="padding:12px 16px;text-align:center;color:var(--text-mid);font-weight:600">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${lista.map((r,i) => {
+              const custoTotal = (r.insumos_lista||[]).reduce((s,x)=>s+(x.custo_total||0),0)||r.custo||0;
+              const nInsumos   = (r.insumos_lista||[]).length;
+              const nomeHtml   = busca && r.nome.toLowerCase().includes(busca)
+                ? r.nome.replace(new RegExp(busca,'gi'), m=>`<mark style="background:#ffe082;border-radius:2px">${m}</mark>`)
+                : r.nome;
+              // Insumos que batem com a busca
+              const insumosBatidos = busca
+                ? (r.insumos_lista||[]).filter(x=>x.nome.toLowerCase().includes(busca))
+                : [];
+              return `<tr style="border-bottom:1px solid var(--cream);transition:background .15s" onmouseover="this.style.background='var(--cream)'" onmouseout="this.style.background=''">
+                <td style="padding:12px 16px">
+                  <div style="font-weight:600;color:var(--choco)">${nomeHtml}</div>
+                  ${insumosBatidos.length ? `<div style="font-size:.72rem;color:var(--caramel-dk);margin-top:2px">🧂 ${insumosBatidos.map(x=>`<mark style="background:#ffe082;border-radius:2px">${x.nome}</mark>`).join(', ')}</div>` : ''}
+                </td>
+                <td style="padding:12px 16px;text-align:center;color:var(--text-lt)" class="hide-mobile">⏱ ${r.tempo||0} min</td>
+                <td style="padding:12px 16px;text-align:center;color:var(--text-lt)" class="hide-mobile">🍽 ${r.rendimento||1}</td>
+                <td style="padding:12px 16px;text-align:center;color:var(--text-lt)" class="hide-mobile">🧂 ${nInsumos}</td>
+                <td style="padding:12px 16px;text-align:right;font-weight:700;color:var(--caramel-dk)">${formatMoney(custoTotal)}</td>
+                <td style="padding:12px 16px;text-align:center">
+                  <div style="display:flex;gap:6px;justify-content:center">
+                    <button class="btn-icon" onclick="editarReceita('${r.id}')">✏️</button>
+                    <button class="btn-icon danger" onclick="excluirReceita('${r.id}')">🗑</button>
+                  </div>
+                </td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
 }
 
 function editarReceita(id) {
@@ -5681,7 +5779,15 @@ function switchPrecTab(tab) {
     if (p) p.style.display = t===tab ? 'block' : 'none';
   });
   if (tab === 'saved')  renderPrecSaved();
-  if (tab === 'custos') renderCustosFixos();
+  if (tab === 'custos') {
+    // Pré-seleciona mês atual ao abrir a aba
+    const cfEl = document.getElementById('cf-filtro-mes');
+    if (cfEl && !cfEl.value) {
+      const now = new Date();
+      cfEl.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    }
+    renderCustosFixos();
+  }
 }
 
 function renderProducao() {
@@ -6183,17 +6289,16 @@ function excluirCustoFixo(id) {
 }
 
 function renderCustosFixos() {
-  const filtroMes = document.getElementById('cf-filtro-mes')?.value || '';
-  const lista     = filtroMes
-    ? db.custos_fixos_itens.filter(c=>c.mes===filtroMes)
-    : db.custos_fixos_itens;
-
-  // Inicializa filtro com mês atual se vazio
+  // Garante mês atual pré-selecionado ANTES de filtrar
   const cfFiltroEl = document.getElementById('cf-filtro-mes');
   if (cfFiltroEl && !cfFiltroEl.value) {
     const now = new Date();
     cfFiltroEl.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   }
+  const filtroMes = cfFiltroEl?.value || '';
+  const lista     = filtroMes
+    ? (db.custos_fixos_itens || []).filter(c => c.mes === filtroMes)
+    : (db.custos_fixos_itens || []);
 
   const totalMes = lista.reduce((s,c)=>s+c.valor,0);
   const producao = parseInt(document.getElementById('cf-producao-mes')?.value)||100;
@@ -6362,7 +6467,12 @@ function copiarCustosUltimoMes() {
 // ── Carrega perfil do banco antes de renderizar metas ──────────────
 async function carregarMetas() {
   try {
-    const uid = await getUID();
+    let uid = await getUID();
+    // Mobile: sessão pode demorar mais para hidratar — tenta novamente
+    if (!uid) {
+      await new Promise(r => setTimeout(r, 800));
+      uid = await getUID();
+    }
     if (uid) {
       let token = SUPABASE_KEY;
       if (sbClient) {
@@ -6437,20 +6547,31 @@ function renderMetas() {
 
   // ── Popula filtro de ano ──
   const selFiltro = document.getElementById('meta-mes-filtro');
+  const anoAtual = now.getFullYear();
   if (selFiltro) {
-    const anos = [...new Set(db.vendas.map(v => new Date(v.data).getFullYear()))];
-    if (!anos.includes(now.getFullYear())) anos.push(now.getFullYear());
-    anos.sort((a,b) => b-a);
-    if (selFiltro.options.length === 0) {
+    // Coleta anos das vendas + ano atual (garante que sempre tem pelo menos o ano atual)
+    const anosVendas = (db.vendas || [])
+      .map(v => { try { return new Date(v.data).getFullYear(); } catch(e) { return null; } })
+      .filter(a => a && !isNaN(a));
+    const anos = [...new Set([...anosVendas, anoAtual])].sort((a,b) => b-a);
+
+    // Sempre repopula se os anos mudaram ou está vazio
+    const optsAtuais = Array.from(selFiltro.options).map(o => parseInt(o.value));
+    const iguais = anos.length === optsAtuais.length && anos.every((a,i) => a === optsAtuais[i]);
+    if (!iguais) {
+      selFiltro.innerHTML = '';
       anos.forEach(y => {
         const opt = document.createElement('option');
         opt.value = y; opt.textContent = y;
         selFiltro.appendChild(opt);
       });
-      selFiltro.value = now.getFullYear();
+    }
+    // Garante que o ano atual está selecionado se nenhum valor válido
+    if (!selFiltro.value || isNaN(parseInt(selFiltro.value))) {
+      selFiltro.value = anoAtual;
     }
   }
-  const anoFiltro   = parseInt(selFiltro?.value || now.getFullYear());
+  const anoFiltro   = parseInt(selFiltro?.value) || anoAtual;
   const mesAtualIdx = now.getMonth();
   const mesFiltroKey = `${anoFiltro}-${String(mesAtualIdx+1).padStart(2,'0')}`;
 
@@ -6464,7 +6585,7 @@ function renderMetas() {
   const compostoAuto = prolabore + custosFixos;
   const metaTotal    = metaMes > 0 ? metaMes : compostoAuto;
 
-  const vendasMesAtual = db.vendas.filter(v => {
+  const vendasMesAtual = (db.vendas || []).filter(v => {
     const d = new Date(v.data);
     return d.getFullYear() === anoFiltro && d.getMonth() === mesAtualIdx;
   });
