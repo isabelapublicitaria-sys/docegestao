@@ -467,7 +467,7 @@
 
   /* MODAL */
   .modal-overlay {
-    position: fixed; inset: 0; z-index: 200;
+    position: fixed; inset: 0; z-index: 1100;
     background: rgba(30,10,0,0.55);
     display: flex; align-items: center; justify-content: center;
     opacity: 0; pointer-events: none;
@@ -475,6 +475,9 @@
     padding: 20px;
   }
   .modal-overlay.open { opacity: 1; pointer-events: all; }
+  @media (min-width: 769px) {
+    .modal-overlay { left: var(--sidebar-w); }
+  }
   .modal {
     background: var(--cream);
     border-radius: 24px;
