@@ -5538,7 +5538,7 @@ function renderReceitaInsumoLista() {
     <div style="display:flex;align-items:center;gap:10px;background:var(--white);border-radius:10px;padding:10px 14px">
       <div style="flex:1">
         <div style="font-size:0.88rem;font-weight:600;color:var(--choco)">${i.nome}</div>
-        <div style="font-size:0.75rem;color:var(--text-lt)">${i.qtd} ${i.unidade} × R$ ${i.custo_unit.toFixed(2).replace('.',',')}/${i.unidade}</div>
+        <div style="font-size:0.75rem;color:var(--text-lt)">${i.qtd} ${i.unidade}${i.custo_unit ? ' × R$ ' + Number(i.custo_unit).toFixed(2).replace('.',',') + '/' + i.unidade : ''}</div>
       </div>
       <div style="font-size:0.9rem;font-weight:700;color:var(--caramel-dk);white-space:nowrap">${formatMoney(i.custo_total)}</div>
       <button onclick="removerInsumoReceita(${idx})" style="background:none;border:none;cursor:pointer;color:var(--text-lt);font-size:1rem;padding:2px 4px" title="Remover">✕</button>
@@ -5607,7 +5607,7 @@ function renderReceitas() {
   if (view === 'grid') {
     grid.className = 'receita-grid';
     grid.innerHTML = lista.map((r,i) => {
-      const custoTotal = (r.insumos_lista||[]).reduce((s,x) => s + (x.custo_total||0), 0) || r.custo || 0;
+      const custoTotal = (r.insumos_lista||[]).reduce((s,x) => s + (parseFloat(x.custo_total)||0), 0) || parseFloat(r.custo)||0;
       const nInsumos   = (r.insumos_lista||[]).length;
       // Destaca termo buscado no nome
       const nomeHtml = busca && r.nome.toLowerCase().includes(busca)
@@ -5703,7 +5703,15 @@ function renderReceitas() {
 function editarReceita(id) {
   const r = db.receitas.find(x => x.id === id);
   if (!r) return;
-  receitaInsumos = r.insumos_lista ? JSON.parse(JSON.stringify(r.insumos_lista)) : [];
+  // Normaliza insumos importados que podem não ter custo_unit
+  receitaInsumos = (r.insumos_lista ? JSON.parse(JSON.stringify(r.insumos_lista)) : []).map(i => ({
+    ...i,
+    qtd:        parseFloat(i.qtd || i.quantidade || 0),
+    custo_unit:  parseFloat(i.custo_unit  || 0),
+    custo_total: parseFloat(i.custo_total || 0),
+    unidade:    i.unidade || 'g',
+    nome:       i.nome || '',
+  }));
   document.getElementById('receita-id').value           = r.id;
   document.getElementById('receita-nome').value          = r.nome;
   document.getElementById('receita-rendimento').value    = r.rendimento||'';
