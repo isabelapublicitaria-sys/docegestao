@@ -508,9 +508,21 @@
   }
   .modal-close:hover { background: var(--cream-dark); color: var(--text); }
   .modal-body { padding: 24px 28px; }
-  .modal-footer { padding: 16px 28px 24px; display: flex; gap: 10px; justify-content: flex-end; }
+  .modal-footer { padding: 16px 28px 24px; display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .form-row.triple { grid-template-columns: 1fr 1fr 1fr; }
+  @media (max-width: 520px) {
+    .modal-overlay { padding: 0; align-items: flex-end; }
+    .modal { border-radius: 20px 20px 0 0; width: 100% !important; max-height: 92vh; }
+    .modal-header { padding: 20px 18px 14px; }
+    .modal-body { padding: 16px 18px; }
+    .modal-footer { padding: 12px 18px 20px; }
+    .form-row { grid-template-columns: 1fr !important; gap: 10px; }
+    .form-row.triple { grid-template-columns: 1fr 1fr !important; }
+    .cf-form-grid { grid-template-columns: 1fr 1fr !important; }
+    .cf-form-grid button { grid-column: 1 / -1; }
+    .venda-edit-row { grid-template-columns: 1fr !important; }
+  }
   .modal .form-group { margin-bottom: 16px; }
   .modal .form-group input,
   .modal .form-group select,
@@ -2232,7 +2244,7 @@
 
           <!-- Formulário de adição (oculto por padrão) -->
           <div id="cf-form-wrap" style="display:none;background:var(--cream);border-radius:12px;padding:14px 16px;margin-bottom:14px">
-            <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;align-items:flex-end">
+            <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;align-items:flex-end" class="cf-form-grid">
               <div class="prec-field" style="margin:0">
                 <label>Nome do custo</label>
                 <input type="text" id="cf-nome" placeholder="Ex: Aluguel, Gás, Internet..." />
@@ -2946,23 +2958,23 @@
         </div>
 
         <!-- Linha para adicionar insumo -->
-        <div style="display:flex;gap:8px;margin-bottom:12px;align-items:flex-end">
-          <div style="flex:2">
+        <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:12px">
+          <div>
             <div style="font-size:0.75rem;font-weight:600;color:var(--text-lt);margin-bottom:4px">Selecionar insumo</div>
             <select id="receita-insumo-select" style="width:100%;padding:10px 12px;border:2px solid var(--cream-mid);border-radius:10px;font-family:'Comfortaa',sans-serif;font-size:0.85rem;background:var(--white);color:var(--text);outline:none">
               <option value="">— Escolha um insumo —</option>
             </select>
           </div>
-          <div style="flex:1">
+          <div>
             <div style="font-size:0.75rem;font-weight:600;color:var(--text-lt);margin-bottom:4px">Quantidade</div>
             <input type="number" id="receita-insumo-qtd" placeholder="0" min="0" step="0.01"
-              style="width:100%;padding:10px 12px;border:2px solid var(--cream-mid);border-radius:10px;font-family:'Comfortaa',sans-serif;font-size:0.85rem;background:var(--white);outline:none" />
+              style="width:90px;padding:10px 12px;border:2px solid var(--cream-mid);border-radius:10px;font-family:'Comfortaa',sans-serif;font-size:0.85rem;background:var(--white);outline:none" />
           </div>
-          <button onclick="adicionarInsumoReceita()"
-            style="padding:10px 16px;background:var(--caramel);color:white;border:none;border-radius:10px;font-family:'Comfortaa',sans-serif;font-size:0.85rem;font-weight:700;cursor:pointer;white-space:nowrap;height:42px">
-            + Adicionar
-          </button>
         </div>
+        <button onclick="adicionarInsumoReceita()"
+          style="width:100%;padding:10px;background:var(--caramel);color:white;border:none;border-radius:10px;font-family:'Comfortaa',sans-serif;font-size:0.85rem;font-weight:700;cursor:pointer;margin-bottom:4px">
+          + Adicionar insumo
+        </button>
 
         <!-- Lista de insumos adicionados -->
         <div id="receita-insumos-lista" style="display:flex;flex-direction:column;gap:6px">
@@ -3260,7 +3272,7 @@
         <button class="btn-sm ghost" style="margin-top:10px" onclick="adicionarItemVenda()">＋ Adicionar item</button>
       </div>
 
-      <div class="form-row" style="margin-top:4px">
+      <div class="form-row venda-edit-row" style="margin-top:4px">
         <div class="form-group">
           <label>Forma de pagamento</label>
           <select id="venda-edit-pagamento">
@@ -6299,14 +6311,10 @@ function excluirCustoFixo(id) {
 function renderCustosFixos() {
   // Garante mês atual pré-selecionado ANTES de filtrar
   const cfFiltroEl = document.getElementById('cf-filtro-mes');
-  if (cfFiltroEl && !cfFiltroEl.value) {
-    const now = new Date();
-    cfFiltroEl.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  }
-  const filtroMes = cfFiltroEl?.value || '';
-  const lista     = filtroMes
-    ? (db.custos_fixos_itens || []).filter(c => c.mes === filtroMes)
-    : (db.custos_fixos_itens || []);
+  const _mesAtual = (() => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })();
+  if (cfFiltroEl && !cfFiltroEl.value) cfFiltroEl.value = _mesAtual;
+  const filtroMes = cfFiltroEl?.value || _mesAtual;
+  const lista     = (db.custos_fixos_itens || []).filter(c => c.mes === filtroMes);
 
   const totalMes = lista.reduce((s,c)=>s+c.valor,0);
   const producao = parseInt(document.getElementById('cf-producao-mes')?.value)||100;
@@ -6319,6 +6327,9 @@ function renderCustosFixos() {
   const set = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
   set('cf-total-mes',  formatMoney(totalMes));
   set('cf-por-unidade', porUnit > 0 ? formatMoney(porUnit) : '—');
+  // Atualiza badge no título
+  const badge = document.getElementById('cf-total-badge');
+  if (badge) badge.textContent = formatMoney(totalMes);
 
   // Lista
   const elLista = document.getElementById('cf-lista');
@@ -6508,6 +6519,12 @@ async function carregarMetas() {
       }
     }
   } catch(e) { console.warn('carregarMetas:', e.message); }
+  // Preenche mês atual antes de renderizar
+  const _cfEl = document.getElementById('cf-filtro-mes');
+  if (_cfEl && !_cfEl.value) {
+    const _now = new Date();
+    _cfEl.value = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}`;
+  }
   renderMetas();
 }
 
@@ -6651,6 +6668,18 @@ function renderMetas() {
         }).join('')}
       </div>`;
   } else if (boxReceitas) { boxReceitas.innerHTML = ''; }
+
+  // ── Custos Fixos — garante mês atual e renderiza junto ──
+  const cfEl = document.getElementById('cf-filtro-mes');
+  if (cfEl && !cfEl.value) {
+    cfEl.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  }
+  // Também preenche o campo cf-mes (formulário de adição) com mês atual
+  const cfMesEl = document.getElementById('cf-mes');
+  if (cfMesEl && !cfMesEl.value) {
+    cfMesEl.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  }
+  renderCustosFixos();
 
   // ── Lista de meses ──
   const lista = document.getElementById('meses-lista');

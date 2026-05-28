@@ -637,6 +637,20 @@ tbody tr:last-child td { border-bottom:none; }
         <button class="btn-sm2 green" onclick="ativarCliente()">✅ Reativar conta</button>
         <button class="btn-sm2 danger" onclick="suspenderCliente()">🚫 Suspender</button>
       </div>
+
+      <!-- Zona de perigo -->
+      <div style="margin-top:20px;border:2px solid #ffcccc;border-radius:12px;padding:14px 16px;background:#fff8f8">
+        <div style="font-size:.78rem;font-weight:700;color:#c0392b;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+          ⚠️ ZONA DE PERIGO
+        </div>
+        <p style="font-size:.75rem;color:#888;margin:0 0 10px">
+          Exclui permanentemente o perfil, plano, vendas, receitas, insumos e todos os dados desta confeiteira. <strong>Ação irreversível.</strong>
+        </p>
+        <button onclick="excluirClienteCompleto()" 
+          style="background:#c0392b;color:white;border:none;border-radius:8px;padding:9px 18px;font-family:'Comfortaa',sans-serif;font-size:.8rem;font-weight:700;cursor:pointer">
+          🗑️ Excluir conta permanentemente
+        </button>
+      </div>
     </div>
     <div class="modal2-ftr">
       <button class="btn-sm2 ghost" onclick="fecharModal2()">Fechar</button>
@@ -1441,6 +1455,40 @@ async function abrirCliente(userId) {
 function fecharModal2() {
   document.getElementById('modal-cliente2').classList.remove('open');
   clienteAtual = null;
+}
+
+async function excluirClienteCompleto() {
+  const uid  = clienteAtual?.user_id;
+  const nome = document.getElementById('mc2-nome').textContent;
+  if (!uid) return toast2('Nenhum cliente selecionado', 'error');
+
+  if (!confirm(`⚠️ ATENÇÃO!\n\nVocê está prestes a EXCLUIR PERMANENTEMENTE:\n"${nome}"\n\nIsso apaga vendas, receitas, insumos, plano e perfil.\nAção IRREVERSÍVEL!\n\nConfirmar?`)) return;
+  if (!confirm(`Última confirmação: excluir "${nome}"?`)) return;
+
+  toast2('Excluindo conta...', 'ok');
+
+  const hdrs = { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json' };
+  const base = SUPA_URL + '/rest/v1';
+  const tabelas = ['vendas','receitas','insumos','produtos','clientes','metas','perfis','admin_planos','admin_alertas'];
+
+  try {
+    for (const t of tabelas) {
+      await fetch(`${base}/${t}?user_id=eq.${uid}`, { method: 'DELETE', headers: hdrs });
+    }
+    // cadastro_leads pode usar email como chave
+    const perfil = allPerfis.find(p => p.user_id === uid);
+    if (perfil?.email) {
+      await fetch(`${base}/cadastro_leads?email=eq.${encodeURIComponent(perfil.email)}`, { method: 'DELETE', headers: hdrs });
+    }
+
+    allPerfis = allPerfis.filter(p => p.user_id !== uid);
+    fecharModal2();
+    renderClientes2();
+    toast2(`✅ "${nome}" excluída com sucesso!`, 'ok');
+    setTimeout(() => toast2('⚠️ Apague o usuário também em: Supabase → Authentication → Users', 'err'), 2500);
+  } catch(e) {
+    toast2('Erro: ' + e.message, 'error');
+  }
 }
 
 async function salvarPlanoCliente() {
