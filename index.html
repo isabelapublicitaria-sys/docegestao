@@ -4828,17 +4828,34 @@ function renderFinanceiro() {
     return d.getMonth()===mes && d.getFullYear()===ano && (m.tipo==='entrada'||m.tipo==='compra');
   });
 
-  // Separar por categoria: insumos vs embalagens
-  const CATS_EMBAL = ['embalagens','embalagem','Embalagens'];
-  const custoInsumosMes  = movsMes.filter(m => {
-    const ins = db.insumos.find(i => i.id===m.insumo_id||i.nome===m.insumo_nome);
-    return !ins || !(ins.categoria||'').toLowerCase().includes('embalagem');
-  }).reduce((s,m) => s + Number(m.custo_total||0), 0);
+  // Separar por categoria: embalagens vs ingredientes
+  // Busca a categoria atual do insumo no db.insumos (pelo id primeiro, depois pelo nome)
+  const getCategoria = m => {
+    const ins = db.insumos.find(i => i.id === m.insumo_id) ||
+                db.insumos.find(i => (i.nome||'').toLowerCase() === (m.insumo_nome||'').toLowerCase());
+    return (ins?.categoria || '').toLowerCase();
+  };
 
-  const custoEmbalagensMes = movsMes.filter(m => {
-    const ins = db.insumos.find(i => i.id===m.insumo_id||i.nome===m.insumo_nome);
-    return ins && (ins.categoria||'').toLowerCase().includes('embalagem');
-  }).reduce((s,m) => s + Number(m.custo_total||0), 0);
+  const isEmbalagem = m => {
+    const cat = getCategoria(m);
+    return cat.includes('embalagem') || cat.includes('embalagens') ||
+           (m.insumo_nome||'').toLowerCase().startsWith('embalagem') ||
+           (m.insumo_nome||'').toLowerCase().startsWith('caixa') ||
+           (m.insumo_nome||'').toLowerCase().startsWith('saco') ||
+           (m.insumo_nome||'').toLowerCase().startsWith('sacola') ||
+           (m.insumo_nome||'').toLowerCase().startsWith('papel celofane') ||
+           (m.insumo_nome||'').toLowerCase().startsWith('celofane') ||
+           (m.insumo_nome||'').toLowerCase().startsWith('cake box') ||
+           (m.insumo_nome||'').toLowerCase().startsWith('cake bord') ||
+           (m.insumo_nome||'').toLowerCase().startsWith('pote') ||
+           (m.insumo_nome||'').toLowerCase().startsWith('fita');
+  };
+
+  const custoEmbalagensMes = movsMes.filter(m => isEmbalagem(m))
+    .reduce((s,m) => s + Number(m.custo_total||0), 0);
+
+  const custoInsumosMes = movsMes.filter(m => !isEmbalagem(m))
+    .reduce((s,m) => s + Number(m.custo_total||0), 0);
 
   const custoComprasMes = custoInsumosMes + custoEmbalagensMes;
 
