@@ -377,6 +377,12 @@ const MP_PLANOS = {
   pro:   '2423cd9709d94ba08f2e2da6e6f74449',
 };
 
+// Planos promocionais (15% off por tempo determinado)
+const MP_PLANOS_PROMO = {
+  basic: '775a7ed39be947b38b079b186d62a844',
+  pro:   'd93501c2347f471d9afdc8ab524f4752',
+};
+
 // ── Cupons de desconto ─────────────────────────────────────────
 // Cupons dinâmicos do banco + fallback hardcoded
 let CUPONS = {
@@ -555,16 +561,19 @@ async function doCadastro() {
 
     // 4. Plano pago — redireciona para o MP com dados na URL de retorno
     const mpPlanId = MP_PLANOS[planoSelecionado];
-    const retorno  = encodeURIComponent(`https://gesttaconfeitaria.com.br/cadastro.html?pagamento=sucesso&uid=${uid}`);
-    const cupomCod = cupomAtivo ? document.getElementById('cupom-input')?.value?.trim().toUpperCase() : '';
+    const retorno  = encodeURIComponent('https://gesttaconfeitaria.com.br/cadastro.html');
+
+    // Se tiver cupom ativo, usa plano promocional (preço já com desconto)
+    const temCupom = cupomAtivo && document.getElementById('cupom-input')?.value?.trim();
+    const planId   = temCupom && MP_PLANOS_PROMO[planoSelecionado]
+      ? MP_PLANOS_PROMO[planoSelecionado]
+      : mpPlanId;
 
     // Registra plano como "pendente" até o MP confirmar
     await registrarPlano(uid, userJWT, planoSelecionado, 'pendente');
 
     // Redireciona para checkout do MP
-    // external_reference: só o uid (MP não aceita caracteres especiais)
-    // O cupom já foi salvo em cadastro_leads — o webhook busca de lá pelo user_id
-    window.location.href = `https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=${mpPlanId}&external_reference=${encodeURIComponent(uid)}&back_url=${retorno}`;
+    window.location.href = `https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=${planId}&external_reference=${encodeURIComponent(uid)}&back_url=${retorno}`;
 
   } catch(e) {
     let msg = e.message;
