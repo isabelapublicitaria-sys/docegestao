@@ -3753,6 +3753,11 @@ async function loadUserProfile(user) {
       if (perfil.data.meta_faturamento) db.config.metaFaturamento = perfil.data.meta_faturamento;
       if (perfil.data.prolabore)        db.config.prolabore       = perfil.data.prolabore;
       if (perfil.data.horas_mes)        db.config.horasMes        = perfil.data.horas_mes;
+      // Restaura custos fixos do banco (sobrescreve localStorage)
+      if (perfil.data.custos_fixos != null) {
+        try { db.custos_fixos_itens = typeof perfil.data.custos_fixos === 'string' ? JSON.parse(perfil.data.custos_fixos) : (perfil.data.custos_fixos || []); }
+        catch(_) {}
+      }
     } else {
       // Perfil não existe — cria um novo perfil limpo para este usuário
       console.log('Novo usuário detectado — criando perfil...');
@@ -4057,7 +4062,10 @@ function renderPage(page) {
 // DASHBOARD
 // ══════════════════════════════════════
 async function renderDashboard() {
-  // Busca dados frescos do Supabase
+  // Renderiza imediatamente com dados locais (sem esperar Supabase)
+  _renderDashboardUI();
+
+  // Busca dados frescos em background e re-renderiza ao concluir
   try {
     const uid = await getUID();
     if (uid) {
@@ -4079,21 +4087,29 @@ async function renderDashboard() {
         fetch(`${base}/clientes?user_id=eq.${uid}`, { headers: hdrs }),
       ]);
 
+      let atualizado = false;
       if (resVendas.ok) {
         const data = await resVendas.json();
-        if (data) db.vendas = data.map(v => ({ ...v, itens: parseItens(v.itens) }));
+        if (data) { db.vendas = data.map(v => ({ ...v, itens: parseItens(v.itens) })); atualizado = true; }
       }
       if (resProdutos.ok) {
         const data = await resProdutos.json();
-        if (data && data.length > 0) db.produtos = data;
+        if (data) { db.produtos = data; atualizado = true; }
       }
       if (resClientes.ok) {
         const data = await resClientes.json();
-        if (data && data.length > 0) db.clientes = data;
+        if (data) { db.clientes = data; atualizado = true; }
       }
-      saveDB();
+      if (atualizado) {
+        saveDB();
+        // Só re-renderiza se ainda estiver na página dashboard
+        if (currentPage === 'dashboard') _renderDashboardUI();
+      }
     }
   } catch(e) { console.warn('Dashboard load:', e.message); }
+}
+
+function _renderDashboardUI() {
 
   const now      = new Date();
   const todayStr = now.toDateString();
@@ -6519,6 +6535,26 @@ function toggleCustosFixos() {
   }
 }
 
+async function _syncCustosFixos() {
+  try {
+    const uid = await getUID();
+    if (!uid) return;
+    let token = SUPABASE_KEY;
+    if (sbClient) {
+      const { data: sess } = await sbClient.auth.getSession();
+      if (sess?.session?.access_token) token = sess.session.access_token;
+    }
+    await fetch(
+      `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/perfis?user_id=eq.${uid}`,
+      {
+        method: 'PATCH',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ custos_fixos: db.custos_fixos_itens })
+      }
+    );
+  } catch(e) { console.warn('_syncCustosFixos:', e.message); }
+}
+
 function adicionarCustoFixo() {
   const nome  = document.getElementById('cf-nome')?.value.trim();
   const valor = parseFloat(document.getElementById('cf-valor')?.value)||0;
@@ -6529,6 +6565,7 @@ function adicionarCustoFixo() {
 
   db.custos_fixos_itens.push({ id: Date.now().toString(), nome, valor, mes });
   saveDB();
+  _syncCustosFixos();
 
   // Reset campos
   document.getElementById('cf-nome').value  = '';
@@ -6551,6 +6588,7 @@ function adicionarCustoFixo() {
 function excluirCustoFixo(id) {
   db.custos_fixos_itens = db.custos_fixos_itens.filter(c=>c.id!==id);
   saveDB();
+  _syncCustosFixos();
   renderCustosFixos();
 }
 
@@ -6725,6 +6763,7 @@ function copiarCustosUltimoMes() {
   });
 
   saveDB();
+  _syncCustosFixos();
   renderCustosFixos();
   toast(`✅ ${copiados} custo(s) copiado(s) de ${mesAnterior}. Edite os valores se necessário.`, 'success');
 }
@@ -6745,7 +6784,7 @@ async function carregarMetas() {
         if (sess?.session?.access_token) token = sess.session.access_token;
       }
       const res = await fetch(
-        `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/perfis?user_id=eq.${uid}&select=prolabore,horas_mes,meta_faturamento,metas_mensais&limit=1`,
+        `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/perfis?user_id=eq.${uid}&select=prolabore,horas_mes,meta_faturamento,metas_mensais,custos_fixos&limit=1`,
         { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${token}` } }
       );
       if (res.ok) {
@@ -6758,6 +6797,11 @@ async function carregarMetas() {
           // metas mensais (objeto {YYYY-MM: valor})
           if (p.metas_mensais) {
             try { db.config.metasMensais = typeof p.metas_mensais === 'string' ? JSON.parse(p.metas_mensais) : p.metas_mensais; }
+            catch(_) {}
+          }
+          // custos fixos mensais (array de itens)
+          if (p.custos_fixos != null) {
+            try { db.custos_fixos_itens = typeof p.custos_fixos === 'string' ? JSON.parse(p.custos_fixos) : (p.custos_fixos || []); }
             catch(_) {}
           }
           saveDB();
