@@ -2109,6 +2109,10 @@
                 <span style="font-size:.82rem;color:#555">📦 Embalagens compradas</span>
                 <span style="font-size:.82rem;font-weight:600;color:#e65100" id="fc-custo-embalagens">R$ 0</span>
               </div>
+              <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #ffe0b2">
+                <span style="font-size:.82rem;color:#555">🔧 Outros (decoração, ferramentas)</span>
+                <span style="font-size:.82rem;font-weight:600;color:#e65100" id="fc-custo-outros">R$ 0</span>
+              </div>
               <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e65100">
                 <span style="font-size:.82rem;font-weight:700;color:#555">Total compras</span>
                 <span style="font-size:.82rem;font-weight:700;color:#e65100" id="fc-custo-total-compras">R$ 0</span>
@@ -4864,36 +4868,29 @@ function renderFinanceiro() {
     return d.getMonth()===mes && d.getFullYear()===ano && (m.tipo==='entrada'||m.tipo==='compra');
   });
 
-  // Separar por categoria: embalagens vs ingredientes
-  // Busca a categoria atual do insumo no db.insumos (pelo id primeiro, depois pelo nome)
+  // Separar por categoria: insumos, embalagens, outros
   const getCategoria = m => {
     const ins = db.insumos.find(i => i.id === m.insumo_id) ||
                 db.insumos.find(i => (i.nome||'').toLowerCase() === (m.insumo_nome||'').toLowerCase());
     return (ins?.categoria || '').toLowerCase();
   };
 
-  const isEmbalagem = m => {
+  const CATS_INSUMOS = ['farinhas e amidos','laticínios','açúcares','chocolates','gorduras e óleos','ovos','frutas e legumes','oleaginosas','aromas e essências','biscoitos, doces e balas','recheios','leites vegetais','líquidos'];
+  const CATS_EMBALAGENS = ['embalagens'];
+  // Outros: decoração e formas, instrumentos de trabalho, outros, ou qualquer não mapeada
+
+  const getTipo = m => {
     const cat = getCategoria(m);
-    return cat.includes('embalagem') || cat.includes('embalagens') ||
-           (m.insumo_nome||'').toLowerCase().startsWith('embalagem') ||
-           (m.insumo_nome||'').toLowerCase().startsWith('caixa') ||
-           (m.insumo_nome||'').toLowerCase().startsWith('saco') ||
-           (m.insumo_nome||'').toLowerCase().startsWith('sacola') ||
-           (m.insumo_nome||'').toLowerCase().startsWith('papel celofane') ||
-           (m.insumo_nome||'').toLowerCase().startsWith('celofane') ||
-           (m.insumo_nome||'').toLowerCase().startsWith('cake box') ||
-           (m.insumo_nome||'').toLowerCase().startsWith('cake bord') ||
-           (m.insumo_nome||'').toLowerCase().startsWith('pote') ||
-           (m.insumo_nome||'').toLowerCase().startsWith('fita');
+    if (CATS_INSUMOS.includes(cat)) return 'insumo';
+    if (CATS_EMBALAGENS.includes(cat)) return 'embalagem';
+    return 'outro';
   };
 
-  const custoEmbalagensMes = movsMes.filter(m => isEmbalagem(m))
-    .reduce((s,m) => s + Number(m.custo_total||0), 0);
+  const custoInsumosMes    = movsMes.filter(m => getTipo(m) === 'insumo').reduce((s,m) => s + Number(m.custo_total||0), 0);
+  const custoEmbalagensMes = movsMes.filter(m => getTipo(m) === 'embalagem').reduce((s,m) => s + Number(m.custo_total||0), 0);
+  const custoOutrosMes     = movsMes.filter(m => getTipo(m) === 'outro').reduce((s,m) => s + Number(m.custo_total||0), 0);
 
-  const custoInsumosMes = movsMes.filter(m => !isEmbalagem(m))
-    .reduce((s,m) => s + Number(m.custo_total||0), 0);
-
-  const custoComprasMes = custoInsumosMes + custoEmbalagensMes;
+  const custoComprasMes = custoInsumosMes + custoEmbalagensMes + custoOutrosMes;
 
   const custosFixos = (db.custos_fixos_itens||[])
     .filter(c => c.mes === mesStr)
@@ -4926,6 +4923,7 @@ function renderFinanceiro() {
   set('fc-total-entradas',     formatMoney(faturamento));
   set('fc-custo-insumos',      formatMoney(custoInsumosMes));
   set('fc-custo-embalagens',   formatMoney(custoEmbalagensMes));
+  set('fc-custo-outros',       formatMoney(custoOutrosMes));
   set('fc-custo-total-compras',formatMoney(custoComprasMes));
   set('fc-custos-fixos',       formatMoney(custosFixos));
   set('fc-prolabore',          formatMoney(prolabore));
@@ -4947,6 +4945,7 @@ function renderFinanceiro() {
       { label: 'Faturamento', val: faturamento, color: 'var(--caramel)', icon: '💰' },
       { label: 'Insumos comprados', val: custoInsumosMes, color: 'var(--rose)', icon: '🧂' },
       { label: 'Embalagens', val: custoEmbalagensMes, color: '#e65100', icon: '📦' },
+      { label: 'Outros (decoração, ferramentas)', val: custoOutrosMes, color: '#7b5ea7', icon: '🔧' },
       { label: 'Custos fixos', val: custosFixos, color: '#e65100', icon: '💸' },
       { label: 'Lucro líquido', val: Math.max(0,lucroOp), color: 'var(--green)', icon: '📈' },
     ];
