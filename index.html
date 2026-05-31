@@ -8206,9 +8206,13 @@ async function salvarInsumo() {
 
   saveDB();
   await syncSupabase('insumos', ins);
-  // Sincroniza receitas atualizadas
-  for (const r of db.receitas) { await syncSupabase('receitas', r); }
+  // Sincroniza APENAS as receitas que foram alteradas, em paralelo
   if (fichasAtualizadas > 0) {
+    const receitasAlteradas = db.receitas.filter(r => {
+      const lista = r.insumos_lista || [];
+      return lista.some(x => x.insumo_id === ins.id || (x.nome||'').toLowerCase().trim() === insNomeLower);
+    });
+    await Promise.all(receitasAlteradas.map(r => syncSupabase('receitas', r)));
     setTimeout(() => toast(`📖 ${fichasAtualizadas} ficha(s) técnica(s) atualizada(s) automaticamente!`, 'success'), 800);
   }
 
