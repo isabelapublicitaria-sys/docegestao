@@ -569,7 +569,8 @@ body {
 .entrega-opt .eo-sub   { font-size: .72rem; color: var(--text3); }
 
 /* Pagamento */
-.pag-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+.pag-opts { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.pag-opt { flex: 1 1 calc(50% - 4px); min-width: 120px; }
 .pag-opt {
   padding: 10px 12px; border: 2px solid var(--cream3); border-radius: 10px;
   background: none; cursor: pointer; transition: all .25s;
@@ -768,7 +769,7 @@ body {
   .prod-img { height: 110px; font-size: 2rem; }
   .main { padding: 32px 14px 100px; }
   .row2 { grid-template-columns: 1fr; }
-  .pag-opts { grid-template-columns: 1fr; }
+  .pag-opt { flex: 1 1 100%; }
   .hero-info { gap: 20px; }
 }
 </style>
