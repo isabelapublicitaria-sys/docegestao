@@ -1147,7 +1147,7 @@ async function loadPerfil() {
   const headers = { 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}` };
 
   // Solicita explicitamente todas as colunas necessárias (RLS pode limitar colunas)
-  const cols = 'user_id,nome,empresa,tel,instagram,endereco,cidade,estado,logo_url,hero_img_url,hero_cor,hero_tipo,loja_aberta,horarios,pix_chave,pix_nome,pag_dinheiro,pag_pix,pag_cred,pag_deb,pag_entrega,payment_gateway,slug';
+  const cols = 'user_id,nome,empresa,tel,instagram,endereco,cidade,estado,logo_url,hero_img_url,hero_cor,hero_tipo,loja_aberta,horarios,pix_chave,pix_nome,pag_dinheiro,pag_pix,pag_cred,pag_deb,pag_entrega,payment_gateway,gateway_metodo_pix,gateway_metodo_cred,slug';
   const res = await fetch(
     `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/perfis?user_id=eq.${LOJA_USER_ID}&select=${cols}&limit=1`,
     { headers }
@@ -1169,25 +1169,44 @@ async function loadPerfil() {
   if (data.pag_dinheiro === false) document.querySelector('.pag-opt[data-pag="dinheiro"]')?.remove();
 
   if (gatewayAtivo) {
-    // Com gateway: remove Pix manual e mostra botão de pagamento online
+    // Remove Pix manual — será substituído pelo gateway se ativo
     document.querySelector('.pag-opt[data-pag="pix"]')?.remove();
-    // Adiciona opção de pagamento online se não existir
+
     const firstOpt = document.querySelector('.pag-opt');
-    if (firstOpt && !document.getElementById('pag-online')) {
-      const btnOnline = document.createElement('button');
-      btnOnline.className = 'pag-opt';
-      btnOnline.id = 'pag-online';
-      btnOnline.dataset.pag = 'online';
-      btnOnline.onclick = function() { setPag(this); };
-      const label = data.payment_gateway === 'mercadopago' ? '💳 Pagar online' : '💳 InfinitePay';
-      btnOnline.textContent = label;
-      firstOpt.parentNode.insertBefore(btnOnline, firstOpt);
+    const container = firstOpt?.parentNode;
+
+    // Pix via gateway
+    const gwPix  = data.gateway_metodo_pix  !== false; // default true se não configurado
+    // Crédito via gateway
+    const gwCred = !!data.gateway_metodo_cred;
+
+    if (container) {
+      // Botão Crédito (inserido antes do primeiro botão)
+      if (gwCred && !document.getElementById('pag-online-cred')) {
+        const btnCred = document.createElement('button');
+        btnCred.className = 'pag-opt';
+        btnCred.id = 'pag-online-cred';
+        btnCred.dataset.pag = 'online_cred';
+        btnCred.onclick = function() { setPag(this); };
+        btnCred.textContent = '💳 Crédito';
+        container.insertBefore(btnCred, firstOpt);
+      }
+      // Botão Pix (inserido antes do primeiro botão — ficará antes do crédito)
+      if (gwPix && !document.getElementById('pag-online-pix')) {
+        const btnPix = document.createElement('button');
+        btnPix.className = 'pag-opt';
+        btnPix.id = 'pag-online-pix';
+        btnPix.dataset.pag = 'online_pix';
+        btnPix.onclick = function() { setPag(this); };
+        btnPix.textContent = '⚡ Pix';
+        container.insertBefore(btnPix, container.querySelector('.pag-opt'));
+      }
     }
   } else {
     if (data.pag_pix === false) document.querySelector('.pag-opt[data-pag="pix"]')?.remove();
   }
 
-  // Cartão: mostra se pag_cred/pag_deb for true (qualquer valor truthy)
+  // Cartão na entrega: mostra se pag_cred/pag_deb for true
   if (!data.pag_cred) document.getElementById('pag-cred')?.remove();
   if (!data.pag_deb)  document.getElementById('pag-deb')?.remove();
 
@@ -1700,13 +1719,14 @@ function renderPagPanel() {
   const el    = document.getElementById('pag-info-wrap');
   const total = cart.reduce((s,c) => s + c.qty*c.preco, 0);
 
-  if (pagamento === 'online') {
-    // Pagamento via gateway (Mercado Pago ou InfinitePay)
+  if (pagamento === 'online_pix' || pagamento === 'online_cred' || pagamento === 'online') {
     const gw = perfil.payment_gateway;
-    const label = gw === 'mercadopago' ? 'Mercado Pago' : 'InfinitePay';
+    const gwLabel = gw === 'mercadopago' ? 'Mercado Pago' : 'InfinitePay';
+    const isPixOnline = pagamento === 'online_pix';
+    const metodoLabel = isPixOnline ? '⚡ Pix' : '💳 Crédito';
     el.innerHTML = `
       <div class="pag-panel pix" style="background:#e8f5e9;border-color:#a5d6a7">
-        <div class="pag-panel-title" style="color:#1b5e20">💳 Pagamento online — ${label}</div>
+        <div class="pag-panel-title" style="color:#1b5e20">${metodoLabel} via ${gwLabel}</div>
         <div style="font-size:.82rem;color:#2e7d32;line-height:1.7">
           ✓ Você será redirecionado para a página de pagamento seguro ao confirmar o pedido.<br>
           <strong>Valor: ${formatMoney(total)}</strong>
@@ -1976,7 +1996,7 @@ ${obs ? `\n*Obs:* ${obs}` : ''}
   _pedidoEmAndamento = false;
 
   // ── Pagamento online: redireciona para MP / InfinitePay ──────
-  if (pagamento === 'online') {
+  if (pagamento === 'online_pix' || pagamento === 'online_cred' || pagamento === 'online') {
     closeCheckout();
     toast('⏳ Gerando link de pagamento...', 'success');
     try {
@@ -1989,13 +2009,14 @@ ${obs ? `\n*Obs:* ${obs}` : ''}
           'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA',
         },
         body: JSON.stringify({
-          user_id:      LOJA_USER_ID,
-          items:        cart.map(c => ({ nome: c.nome, qty: c.qty, preco: c.preco })),
+          user_id:        LOJA_USER_ID,
+          items:          cart.map(c => ({ nome: c.nome, qty: c.qty, preco: c.preco })),
           total,
-          cliente_nome: nome,
-          cliente_tel:  tel,
-          cliente_email: document.getElementById('ck-email')?.value || '',
-          order_ref:    pedidoId,
+          cliente_nome:   nome,
+          cliente_tel:    tel,
+          cliente_email:  document.getElementById('ck-email')?.value || '',
+          order_ref:      pedidoId,
+          payment_method: pagamento === 'online_pix' ? 'pix' : pagamento === 'online_cred' ? 'credit_card' : null,
         }),
       });
       const mpData = await mpRes.json();

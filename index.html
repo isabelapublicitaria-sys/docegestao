@@ -2701,6 +2701,26 @@
               </div>
               <div style="font-size:.72rem;color:var(--text-lt);margin-top:6px">Encontre no app InfinitePay → canto superior esquerdo (sem o $ inicial)</div>
             </div>
+            <div id="wrap-metodos-gateway" style="display:none;margin-top:14px;padding:14px 16px;background:var(--cream);border-radius:10px">
+              <div style="font-size:.8rem;font-weight:700;color:var(--text-dark);margin-bottom:10px">💳 Métodos disponíveis no gateway</div>
+              <div style="display:flex;gap:16px;flex-wrap:wrap">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;border:2px solid var(--cream-dark);border-radius:10px;flex:1;min-width:120px">
+                  <input type="checkbox" id="cfg-gateway-pix" style="width:18px;height:18px;accent-color:var(--caramel);cursor:pointer">
+                  <div>
+                    <div style="font-weight:700;font-size:.9rem">⚡ Pix</div>
+                    <div style="font-size:.72rem;color:var(--text-mid)">Pagamento instantâneo</div>
+                  </div>
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;border:2px solid var(--cream-dark);border-radius:10px;flex:1;min-width:120px">
+                  <input type="checkbox" id="cfg-gateway-credito" style="width:18px;height:18px;accent-color:var(--caramel);cursor:pointer">
+                  <div>
+                    <div style="font-weight:700;font-size:.9rem">💳 Crédito</div>
+                    <div style="font-size:.72rem;color:var(--text-mid)">Cartão de crédito</div>
+                  </div>
+                </label>
+              </div>
+              <div style="font-size:.72rem;color:var(--text-lt);margin-top:8px">⚠️ Selecione ao menos um método. No cardápio aparecerá um botão para cada opção ativa.</div>
+            </div>
             <button class="btn-sm primary" style="margin-top:16px" onclick="salvarGateway()">💾 Salvar configuração de pagamento</button>
           </div>
         </div>
@@ -8226,14 +8246,23 @@ function toggleGatewayFields() {
   const gw = document.querySelector('input[name="gateway"]:checked')?.value || '';
   document.getElementById('fields-mp').style.display = gw === 'mercadopago' ? 'block' : 'none';
   document.getElementById('fields-ip').style.display = gw === 'infinitepay' ? 'block' : 'none';
+  const wrapMetodos = document.getElementById('wrap-metodos-gateway');
+  if (wrapMetodos) wrapMetodos.style.display = (gw === 'mercadopago' || gw === 'infinitepay') ? 'block' : 'none';
 }
 
 async function salvarGateway() {
   const gw      = document.querySelector('input[name="gateway"]:checked')?.value || '';
   const mpToken = document.getElementById('cfg-mp-token')?.value?.trim() || '';
   const ipTag   = document.getElementById('cfg-ip-tag')?.value?.trim() || '';
+  const gwPix   = document.getElementById('cfg-gateway-pix')?.checked || false;
+  const gwCred  = document.getElementById('cfg-gateway-credito')?.checked || false;
   const uid     = await getUID();
   if (!uid) return toast('Usuário não autenticado', 'error');
+
+  if (gw && !gwPix && !gwCred) {
+    toast('Selecione ao menos um método (Pix ou Crédito)', 'error');
+    return;
+  }
 
   let authToken = SUPABASE_KEY;
   if (sbClient) {
@@ -8252,9 +8281,11 @@ async function salvarGateway() {
         'Prefer':       'return=minimal',
       },
       body: JSON.stringify({
-        payment_gateway: gw || null,
-        mp_access_token: mpToken || null,
-        infinitepay_tag: ipTag || null,
+        payment_gateway:    gw || null,
+        mp_access_token:    mpToken || null,
+        infinitepay_tag:    ipTag || null,
+        gateway_metodo_pix: gwPix,
+        gateway_metodo_cred: gwCred,
       }),
     }
   );
@@ -8274,6 +8305,11 @@ function carregarGateway(c) {
   const ipTag = document.getElementById('cfg-ip-tag');
   if (mpTok && c.mp_access_token)  mpTok.value = c.mp_access_token;
   if (ipTag && c.infinitepay_tag)  ipTag.value = c.infinitepay_tag;
+  // Carrega checkboxes de método
+  const elPix  = document.getElementById('cfg-gateway-pix');
+  const elCred = document.getElementById('cfg-gateway-credito');
+  if (elPix)  elPix.checked  = c.gateway_metodo_pix  !== false && (c.gateway_metodo_pix || !gw);
+  if (elCred) elCred.checked = !!c.gateway_metodo_cred;
   toggleGatewayFields();
 }
 
