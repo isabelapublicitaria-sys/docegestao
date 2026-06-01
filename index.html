@@ -3383,6 +3383,13 @@
         <label>Observações</label>
         <textarea id="venda-edit-obs" placeholder="Observações sobre a venda..." rows="2"></textarea>
       </div>
+
+      <div style="display:flex;align-items:center;gap:12px;margin-top:8px;padding:10px 14px;background:var(--cream);border-radius:10px">
+        <input type="checkbox" id="venda-edit-entregue" style="width:18px;height:18px;accent-color:var(--caramel);cursor:pointer" />
+        <label for="venda-edit-entregue" style="font-size:.85rem;font-weight:600;color:var(--text-mid);cursor:pointer;margin:0">
+          📦 Marcar como entregue ao cliente
+        </label>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn-sm ghost" onclick="closeModal('modal-venda')">Cancelar</button>
@@ -3958,9 +3965,28 @@ function enterApp(user) {
   setTimeout(() => {
     const _hambBtn = document.getElementById('btn-hamburger');
     if (_hambBtn) {
-      _hambBtn.style.cssText = 'display:-webkit-flex!important;display:flex!important;position:fixed;top:10px;left:10px;z-index:1060;width:44px;height:44px;background:linear-gradient(135deg,#D4587A,#6B2D5E);border:none;border-radius:12px;-webkit-flex-direction:column;flex-direction:column;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;gap:5px;box-shadow:0 4px 14px rgba(200,100,120,0.35);cursor:pointer;-webkit-appearance:none;touch-action:manipulation;';
+      // Só mostra o hamburger em mobile — desktop tem sidebar sempre visível
+      if (window.innerWidth <= 900) {
+        _hambBtn.classList.add('active');
+        _hambBtn.style.cssText = 'display:-webkit-flex!important;display:flex!important;position:fixed;top:10px;left:10px;z-index:1060;width:44px;height:44px;background:linear-gradient(135deg,#D4587A,#6B2D5E);border:none;border-radius:12px;-webkit-flex-direction:column;flex-direction:column;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;gap:5px;box-shadow:0 4px 14px rgba(200,100,120,0.35);cursor:pointer;-webkit-appearance:none;touch-action:manipulation;';
+      } else {
+        _hambBtn.style.cssText = 'display:none!important;';
+      }
     }
   }, 100);
+  // Garante que o hamburger some/aparece ao redimensionar janela
+  window.addEventListener('resize', () => {
+    const _hambBtn = document.getElementById('btn-hamburger');
+    if (!_hambBtn) return;
+    if (window.innerWidth <= 900) {
+      if (!_hambBtn.classList.contains('active')) return; // ainda não logado
+      _hambBtn.style.cssText = 'display:-webkit-flex!important;display:flex!important;position:fixed;top:10px;left:10px;z-index:1060;width:44px;height:44px;background:linear-gradient(135deg,#D4587A,#6B2D5E);border:none;border-radius:12px;-webkit-flex-direction:column;flex-direction:column;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;gap:5px;box-shadow:0 4px 14px rgba(200,100,120,0.35);cursor:pointer;-webkit-appearance:none;touch-action:manipulation;';
+    } else {
+      _hambBtn.style.cssText = 'display:none!important;';
+      // Garante que sidebar está visível no desktop
+      document.getElementById('sidebar')?.classList.remove('open');
+    }
+  });
   document.getElementById('user-name-display').textContent = user.name;
   document.getElementById('user-email-display').textContent = user.email;
   document.getElementById('user-avatar').textContent = user.name.charAt(0).toUpperCase();
@@ -5197,6 +5223,7 @@ function filterVendas() {
       <td class="hide-mobile" style="font-size:.78rem;color:var(--text-lt);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${parseItens(v.itens).map(i=>`${i.qty}x ${i.nome}`).join(', ')||'—'}</td>
       <td><strong>${formatMoney(v.total)}</strong></td>
       <td class="hide-mobile">${v.canal==='cardapio_digital'?'<span class="badge badge-blue" style="font-size:.68rem">🛍️ Cardápio</span>':'<span class="badge" style="background:var(--cream-dark);color:var(--text-mid);font-size:.68rem">PDV</span>'}</td>
+              <td class="hide-mobile">${v.entregue ? '<span class="badge badge-green" style="font-size:.65rem">📦 Entregue</span>' : ''}</td>
       <td><span class="badge ${v.status==='Pago'||v.status==='Concluído'?'badge-green':'badge-amber'}">${v.status||'Pago'}</span></td>
       <td>
         <button class="btn-icon" onclick="imprimirVenda('${v.id}')" title="Imprimir cupom">🖨️</button>
@@ -7681,6 +7708,7 @@ function editarVenda(id) {
   document.getElementById('modal-venda-id').textContent = `Pedido #${String(v.id).slice(-6)}`;
   document.getElementById('venda-edit-cliente').value   = v.cliente_nome || '';
   document.getElementById('venda-edit-status').value    = v.status || 'Pago';
+  document.getElementById('venda-edit-entregue').checked = !!(v.entregue);
   document.getElementById('venda-edit-total').value     = v.total || 0;
   document.getElementById('venda-edit-obs').value       = v.obs || '';
 
@@ -7817,6 +7845,7 @@ async function salvarVendaEditada() {
 
   const statusAnterior = v.status;
   v.status   = document.getElementById('venda-edit-status').value;
+  v.entregue = document.getElementById('venda-edit-entregue').checked;
   v.total    = parseFloat(document.getElementById('venda-edit-total').value) || v.total;
   v.obs      = document.getElementById('venda-edit-obs').value;
   v.itens    = vendaEditItens;
