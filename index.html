@@ -4338,7 +4338,7 @@ function _renderDashboardUI() {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
     const ds = d.toDateString();
-    const total = db.vendas.filter(v => new Date(v.data).toDateString() === ds).reduce((s,v) => s+v.total, 0);
+    const total = db.vendas.filter(v => vendaConfirmada(v) && new Date(v.data).toDateString() === ds).reduce((s,v) => s+Number(v.total||0), 0);
     weekData.push({ day: days[d.getDay()], total });
   }
   const maxVal = Math.max(...weekData.map(d => d.total), 1);
@@ -5856,22 +5856,30 @@ async function salvarCliente() {
   const nome = document.getElementById('cliente-nome').value.trim();
   if (!nome) { toast('Nome é obrigatório','error'); return; }
 
+  // Null para campos vazios opcionais — evita salvar string vazia no banco
+  const vazio = v => v === '' ? null : v;
+
   const cl = {
     id: id || Date.now().toString(),
     nome,
-    tel:         document.getElementById('cliente-tel').value,
-    email:       document.getElementById('cliente-email').value,
-    aniversario: document.getElementById('cliente-aniversario').value,
-    obs:         document.getElementById('cliente-obs').value,
-    endereco:    document.getElementById('cliente-endereco').value,
-    numero:      document.getElementById('cliente-numero').value,
-    bairro:      document.getElementById('cliente-bairro').value,
-    zip_code:    document.getElementById('cliente-zip').value,
-    referencia:  document.getElementById('cliente-referencia').value,
+    tel:         document.getElementById('cliente-tel').value || null,
+    email:       vazio(document.getElementById('cliente-email').value),
+    aniversario: vazio(document.getElementById('cliente-aniversario').value),
+    obs:         vazio(document.getElementById('cliente-obs').value),
+    endereco:    vazio(document.getElementById('cliente-endereco').value),
+    numero:      vazio(document.getElementById('cliente-numero').value),
+    bairro:      vazio(document.getElementById('cliente-bairro').value),
+    zip_code:    vazio(document.getElementById('cliente-zip').value),
+    referencia:  vazio(document.getElementById('cliente-referencia').value),
   };
 
-  if (id) { db.clientes = db.clientes.map(c => c.id === id ? cl : c); }
-  else    { db.clientes.push(cl); }
+  if (id) {
+    db.clientes = db.clientes.map(c => c.id === id ? { ...c, ...cl } : c);
+    // Atualiza cliente_nome nas vendas vinculadas em memória
+    db.vendas.forEach(v => { if (v.cliente_id === id) v.cliente_nome = nome; });
+  } else {
+    db.clientes.push(cl);
+  }
   saveDB();
 
   // Usa PATCH explícito para update, POST para insert — mais confiável que upsert
@@ -5903,6 +5911,13 @@ async function salvarCliente() {
       console.warn('Erro ao salvar cliente:', err);
       toast('⚠️ Erro ao salvar no servidor: ' + err.slice(0,80), 'error');
       return;
+    }
+
+    // Atualiza cliente_nome nas vendas vinculadas no banco
+    if (id) {
+      await fetch(`${base}/vendas?cliente_id=eq.${id}&user_id=eq.${uid}`,
+        { method: 'PATCH', headers: hdrs, body: JSON.stringify({ cliente_nome: nome }) }
+      ).catch(() => {});
     }
   } catch(e) {
     console.warn('salvarCliente fetch:', e.message);
