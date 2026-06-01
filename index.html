@@ -1359,10 +1359,6 @@
       </button>
 
       <div class="nav-section-label">Gestão</div>
-      <button class="nav-item" onclick="goTo('estoque')">
-        <span class="nav-icon">🍰</span> Cardápio
-        <span class="nav-badge" id="estoque-badge" style="display:none">!</span>
-      </button>
       <button class="nav-item" onclick="goTo('insumos')">
         <span class="nav-icon">🧂</span> Insumos
         <span class="nav-badge" id="insumos-badge" style="display:none">!</span>
@@ -1370,16 +1366,23 @@
       <button class="nav-item" onclick="goTo('receitas')">
         <span class="nav-icon">📖</span> Fichas Técnicas
       </button>
+      <button class="nav-item" onclick="goTo('producao')">
+        <span class="nav-icon">🧮</span> Precificação
+      </button>
+      <button class="nav-item" onclick="goTo('estoque')">
+        <span class="nav-icon">🍰</span> Cardápio
+        <span class="nav-badge" id="estoque-badge" style="display:none">!</span>
+      </button>
       <button class="nav-item" onclick="goTo('clientes')">
         <span class="nav-icon">👥</span> Clientes
       </button>
 
       <div class="nav-section-label">Análise</div>
-      <button class="nav-item" onclick="goTo('producao')">
-        <span class="nav-icon">🧮</span> Precificação
-      </button>
       <button class="nav-item" onclick="goTo('metas')">
         <span class="nav-icon">🎯</span> Metas
+      </button>
+      <button class="nav-item" onclick="goTo('custos')">
+        <span class="nav-icon">💸</span> Custos Fixos
       </button>
       <button class="nav-item" id="nav-financeiro" onclick="goTo('financeiro')" style="display:none">
         <span class="nav-icon">💹</span> Financeiro
@@ -1861,6 +1864,10 @@
               </div>
               <div class="prec-card-body">
                 <!-- Linha para adicionar receita ao cálculo -->
+                <div style="margin-bottom:10px">
+                  <input id="prec-busca-receita" type="text" placeholder="🔍 Buscar receita..." oninput="filtrarReceitasCalc()"
+                    style="width:100%;padding:10px 12px;border:2px solid var(--cream-mid);border-radius:10px;font-family:'Comfortaa',sans-serif;font-size:0.84rem;background:var(--cream);outline:none" />
+                </div>
                 <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:14px">
                   <div style="flex:2">
                     <div style="font-size:0.73rem;font-weight:700;color:var(--text-lt);margin-bottom:4px">Receita</div>
@@ -2267,60 +2274,7 @@
           </div>
         </div>
 
-        <!-- Custos Fixos embutido -->
-        <div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-            <div style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--choco);display:flex;align-items:center;gap:8px">
-              📋 Custos Fixos Mensais
-              <span style="font-size:.68rem;background:var(--caramel);color:white;padding:2px 8px;border-radius:8px" id="cf-total-badge">R$ 0,00</span>
-            </div>
-            <button onclick="toggleCustosFixos()" id="btn-toggle-cf"
-              style="padding:7px 14px;background:var(--cream-dark);color:var(--text-mid);border:none;border-radius:8px;font-family:'Comfortaa',sans-serif;font-size:.8rem;font-weight:600;cursor:pointer">
-              ＋ Adicionar item
-            </button>
-          </div>
-
-          <!-- Formulário de adição (oculto por padrão) -->
-          <div id="cf-form-wrap" style="display:none;background:var(--cream);border-radius:12px;padding:14px 16px;margin-bottom:14px">
-            <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;align-items:flex-end" class="cf-form-grid">
-              <div class="prec-field" style="margin:0">
-                <label>Nome do custo</label>
-                <input type="text" id="cf-nome" placeholder="Ex: Aluguel, Gás, Internet..." />
-              </div>
-              <div class="prec-field" style="margin:0">
-                <label>Valor (R$)</label>
-                <input type="number" id="cf-valor" placeholder="0,00" min="0" step="0.01" />
-              </div>
-              <div class="prec-field" style="margin:0">
-                <label>Mês/Ano</label>
-                <input type="month" id="cf-mes" />
-              </div>
-              <button onclick="adicionarCustoFixo()"
-                style="padding:10px 16px;background:var(--caramel);color:white;border:none;border-radius:10px;font-family:'Comfortaa',sans-serif;font-size:.85rem;font-weight:700;cursor:pointer;height:42px">
-                Adicionar
-              </button>
-            </div>
-          </div>
-
-          <!-- Filtro + lista inline -->
-          <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">
-            <span style="font-size:.78rem;color:var(--text-lt);font-weight:600">Mês:</span>
-            <input type="month" id="cf-filtro-mes" onchange="renderCustosFixos()"
-              style="padding:7px 12px;border:2px solid var(--cream-mid);border-radius:8px;font-family:'Comfortaa',sans-serif;font-size:.83rem;background:var(--white);outline:none" />
-            <span style="font-size:.78rem;color:var(--text-lt)">Unid./mês para rateio:</span>
-            <input type="number" id="cf-producao-mes" placeholder="100" min="1" oninput="renderCustosFixos()"
-              style="width:80px;padding:7px 10px;border:2px solid var(--cream-mid);border-radius:8px;font-family:'Comfortaa',sans-serif;font-size:.83rem;background:var(--white);outline:none" />
-            <span style="font-size:.78rem;color:var(--text-lt)">→ rateio:</span>
-            <strong style="font-size:.85rem;color:var(--caramel-dk)" id="cf-por-unidade">—</strong>
-          </div>
-
-          <div id="cf-lista"></div>
-
-          <div style="margin-top:12px">
-            <button class="btn-sm ghost" onclick="copiarCustosUltimoMes()" style="font-size:.78rem">
-              📋 Copiar custos do mês anterior
-            </button>
-          </div>
+        <!-- Custos Fixos: agora na aba própria "Custos Fixos" no menu -->
 
       </div>
 
@@ -2349,6 +2303,59 @@
           </div>
         </div>
       </div>
+    </section>
+
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+         CUSTOS FIXOS
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <section class="page-content" id="page-custos">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+        <div>
+          <div style="font-family:'Playfair Display',serif;font-size:1.3rem;color:var(--choco)">💸 Custos Fixos Mensais</div>
+          <div style="font-size:.78rem;color:var(--text-lt);margin-top:4px">Aluguel, gás, internet, manutenção, despesas...</div>
+        </div>
+        <span style="font-size:.85rem;background:var(--caramel);color:white;padding:4px 14px;border-radius:10px;font-weight:700" id="cf-total-badge">R$ 0,00</span>
+      </div>
+
+      <!-- Formulário de adição -->
+      <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;margin-bottom:20px">
+        <div style="font-size:.85rem;font-weight:700;color:var(--text-mid);margin-bottom:14px">＋ Adicionar custo</div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;align-items:flex-end" class="cf-form-grid">
+          <div class="prec-field" style="margin:0">
+            <label>Nome do custo</label>
+            <input type="text" id="cf-nome" placeholder="Ex: Aluguel, Gás, Internet, Manutenção..." />
+          </div>
+          <div class="prec-field" style="margin:0">
+            <label>Valor (R$)</label>
+            <input type="number" id="cf-valor" placeholder="0,00" min="0" step="0.01" />
+          </div>
+          <div class="prec-field" style="margin:0">
+            <label>Mês/Ano</label>
+            <input type="month" id="cf-mes" />
+          </div>
+          <button onclick="adicionarCustoFixo()"
+            style="padding:10px 16px;background:var(--caramel);color:white;border:none;border-radius:10px;font-family:'Comfortaa',sans-serif;font-size:.85rem;font-weight:700;cursor:pointer;height:42px">
+            Adicionar
+          </button>
+        </div>
+      </div>
+
+      <!-- Filtro + rateio -->
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+        <span style="font-size:.78rem;color:var(--text-lt);font-weight:600">Mês:</span>
+        <input type="month" id="cf-filtro-mes" onchange="renderCustosFixos()"
+          style="padding:7px 12px;border:2px solid var(--cream-mid);border-radius:8px;font-family:'Comfortaa',sans-serif;font-size:.83rem;background:var(--white);outline:none" />
+        <span style="font-size:.78rem;color:var(--text-lt)">Unid./mês para rateio:</span>
+        <input type="number" id="cf-producao-mes" placeholder="100" min="1" oninput="renderCustosFixos()"
+          style="width:80px;padding:7px 10px;border:2px solid var(--cream-mid);border-radius:8px;font-family:'Comfortaa',sans-serif;font-size:.83rem;background:var(--white);outline:none" />
+        <span style="font-size:.78rem;color:var(--text-lt)">→ rateio:</span>
+        <strong style="font-size:.85rem;color:var(--caramel-dk)" id="cf-por-unidade">—</strong>
+        <button class="btn-sm ghost" onclick="copiarCustosUltimoMes()" style="font-size:.78rem;margin-left:auto">
+          📋 Copiar custos do mês anterior
+        </button>
+      </div>
+
+      <div id="cf-lista"></div>
     </section>
 
     <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -2639,6 +2646,13 @@
             <div class="config-field">
               <div><div class="config-field-label">💳 Cartão de Crédito</div><div class="config-field-sub">Maquininha na entrega/retirada</div></div>
               <button class="toggle" id="tog-pag-cred" onclick="togglePagBtn(this)"></button>
+            </div>
+            <div class="config-field" id="wrap-repasse-taxa" style="padding-left:16px;border-left:3px solid var(--cream-mid);margin-left:8px;display:none">
+              <div>
+                <div class="config-field-label">↪️ Repassar taxa de crédito ao cliente</div>
+                <div class="config-field-sub">Quando ativo, a taxa (~3,5% MP / ~2,49% InfinitePay) é somada ao total do pedido no cardápio quando o cliente escolhe crédito</div>
+              </div>
+              <button class="toggle" id="tog-repasse-taxa" onclick="togglePagBtn(this)"></button>
             </div>
             <div class="config-field">
               <div><div class="config-field-label">💳 Cartão de Débito</div><div class="config-field-sub">Maquininha na entrega/retirada</div></div>
@@ -4078,6 +4092,11 @@ function renderPage(page) {
   if (page === 'receitas')   renderReceitas();
   if (page === 'financeiro') renderFinanceiro();
   if (page === 'insumos')    renderInsumos();
+  if (page === 'custos')     { carregarMetas(); setTimeout(() => {
+      const cfEl = document.getElementById('cf-filtro-mes');
+      if (cfEl && !cfEl.value) { const now=new Date(); cfEl.value=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`; }
+      renderCustosFixos();
+    }, 150); }
   if (page === 'producao')   renderProducao();
   if (page === 'metas')      carregarMetas(); // busca do banco antes de renderizar
   if (page === 'config')     { carregarConfig(); setTimeout(renderHorarios, 150); }
@@ -5865,6 +5884,7 @@ function renderReceitas() {
         <div class="receita-footer">
           <div class="receita-custo">Custo total: <strong>${formatMoney(custoTotal)}</strong></div>
           <div style="display:flex;gap:6px">
+            <button class="btn-icon" title="Copiar receita" onclick="copiarReceita('${r.id}')">📋</button>
             <button class="btn-icon" onclick="editarReceita('${r.id}')">✏️</button>
             <button class="btn-icon danger" onclick="excluirReceita('${r.id}')">🗑</button>
           </div>
@@ -5910,6 +5930,7 @@ function renderReceitas() {
                 <td style="padding:12px 16px;text-align:right;font-weight:700;color:var(--caramel-dk)">${formatMoney(custoTotal)}</td>
                 <td style="padding:12px 16px;text-align:center">
                   <div style="display:flex;gap:6px;justify-content:center">
+                    <button class="btn-icon" title="Copiar receita" onclick="copiarReceita('${r.id}')">📋</button>
                     <button class="btn-icon" onclick="editarReceita('${r.id}')">✏️</button>
                     <button class="btn-icon danger" onclick="excluirReceita('${r.id}')">🗑</button>
                   </div>
@@ -5955,6 +5976,19 @@ function excluirReceita(id) {
   if (rec) syncSupabase('receitas', rec, true);
   renderReceitas();
   toast('Receita excluída', 'success');
+}
+
+function copiarReceita(id) {
+  const original = db.receitas.find(r => r.id === id);
+  if (!original) return;
+  const copia = JSON.parse(JSON.stringify(original));
+  copia.id   = Date.now().toString();
+  copia.nome = 'Cópia de ' + copia.nome;
+  db.receitas.push(copia);
+  saveDB();
+  syncSupabase('receitas', copia, false);
+  renderReceitas();
+  toast(`📋 Receita "${original.nome}" copiada!`, 'success');
 }
 
 async function salvarReceita() {
@@ -6003,33 +6037,18 @@ let precTabAtiva = 'calc';
 
 function switchPrecTab(tab) {
   precTabAtiva = tab;
-  ['calc','saved','custos'].forEach(t => {
+  ['calc','saved'].forEach(t => {
     document.getElementById('prec-tab-'+t)?.classList.toggle('active', t===tab);
     const p = document.getElementById('prec-panel-'+t);
     if (p) p.style.display = t===tab ? 'block' : 'none';
   });
   if (tab === 'saved')  renderPrecSaved();
-  if (tab === 'custos') {
-    // Pré-seleciona mês atual ao abrir a aba
-    const cfEl = document.getElementById('cf-filtro-mes');
-    if (cfEl && !cfEl.value) {
-      const now = new Date();
-      cfEl.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-    }
-    renderCustosFixos();
-  }
 }
 
 function renderProducao() {
   // Popula select de receitas
-  const sel = document.getElementById('prec-sel-receita');
-  if (sel) {
-    sel.innerHTML = '<option value="">— Selecione —</option>' +
-      db.receitas.map(r => {
-        const custo = (r.insumos_lista||[]).reduce((s,i)=>s+i.custo_total,0)||r.custo||0;
-        return `<option value="${r.id}" data-custo="${custo}" data-rend="${r.rendimento||1}">${r.nome} (rend: ${r.rendimento||1} · custo: ${formatMoney(custo)})</option>`;
-      }).join('');
-  }
+  // Busca no campo e popula select
+  filtrarReceitasCalc();
 
   // ── Custo fixo rateado ──
   const now    = new Date();
@@ -6078,7 +6097,12 @@ function adicionarReceitaCalc() {
   const rend       = parseFloat(opt.dataset.rend) || 1;
 
   // Custo proporcional pela unidade/qtd escolhida
-  const custo = (custoTotal / rend) * qtd;
+  // "un"    = receita inteira × qtd (ex: 1 receita de cookie = R$2,78 inteira)
+  // "porcao"= por porção = custoTotal/rend × qtd (ex: 1 porção de 20 = R$2,78/20)
+  // "g"     = proporcional por peso = custoTotal/rend × qtd
+  const custo = unid === 'un'
+    ? custoTotal * qtd
+    : (custoTotal / rend) * qtd;
 
   const exist = precKitItens.find(x => x.receita_id === sel.value && x.unidade === unid);
   if (exist) { exist.qtd = qtd; exist.custo = custo; }
@@ -6464,6 +6488,7 @@ function renderPrecSaved() {
                 <td style="padding:10px 14px;text-align:right;font-weight:700;color:var(--caramel-dk);font-size:.95rem">${formatMoney(p.preco)}</td>
                 <td style="padding:10px 14px;text-align:center">
                   <div style="display:flex;gap:6px;justify-content:center">
+                    <button class="btn-icon" title="Copiar" onclick="copiarPrecificacao('${p.id}')">📋</button>
                     <button class="btn-icon" onclick="carregarPrecificacao('${p.id}')">✏️</button>
                     <button class="btn-icon danger" onclick="excluirPrecificacao('${p.id}')">🗑</button>
                   </div>
@@ -6510,6 +6535,7 @@ function renderPrecSaved() {
       </div>
       <div style="padding:10px 18px 14px;display:flex;gap:8px">
         <button class="btn-sm ghost" onclick="carregarPrecificacao('${p.id}')" style="flex:1">✏️ Editar</button>
+        <button class="btn-icon" title="Copiar precificação" onclick="copiarPrecificacao('${p.id}')">📋</button>
         <button class="btn-icon danger" onclick="excluirPrecificacao('${p.id}')">🗑</button>
       </div>
     </div>`).join('') + '</div>';
@@ -6537,6 +6563,31 @@ function excluirPrecificacao(id) {
   saveDB();
   renderPrecSaved();
   toast('Precificação excluída', 'success');
+}
+
+function copiarPrecificacao(id) {
+  const original = db.precificacoes.find(p => p.id === id);
+  if (!original) return;
+  const copia = JSON.parse(JSON.stringify(original));
+  copia.id   = Date.now().toString();
+  copia.nome = 'Cópia de ' + copia.nome;
+  db.precificacoes.push(copia);
+  saveDB();
+  renderPrecSaved();
+  toast(`📋 Precificação "${original.nome}" copiada!`, 'success');
+}
+
+function filtrarReceitasCalc() {
+  const busca = (document.getElementById('prec-busca-receita')?.value || '').toLowerCase().trim();
+  const sel   = document.getElementById('prec-sel-receita');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Selecione —</option>' +
+    db.receitas
+      .filter(r => !busca || r.nome.toLowerCase().includes(busca))
+      .map(r => {
+        const custo = (r.insumos_lista||[]).reduce((s,i)=>s+i.custo_total,0)||r.custo||0;
+        return `<option value="${r.id}" data-custo="${custo}" data-rend="${r.rendimento||1}">${r.nome} (rend: ${r.rendimento||1} · custo: ${formatMoney(custo)})</option>`;
+      }).join('');
 }
 
 // ── CUSTOS FIXOS ──
@@ -7641,6 +7692,10 @@ function toggleBtn(btn) {
 
 function togglePagBtn(btn) {
   btn.classList.toggle('on');
+  // Mostra/esconde repasse de taxa conforme credito ativado
+  const credOn = document.getElementById('tog-pag-cred')?.classList.contains('on');
+  const wrapTaxa = document.getElementById('wrap-repasse-taxa');
+  if (wrapTaxa) wrapTaxa.style.display = credOn ? 'flex' : 'none';
   salvarPagConfig();
 }
 
@@ -7649,7 +7704,8 @@ async function salvarPagConfig() {
   db.config.pag_pix      = document.getElementById('tog-pag-pix')?.classList.contains('on')      === true;
   db.config.pag_cred     = document.getElementById('tog-pag-cred')?.classList.contains('on')     === true;
   db.config.pag_deb      = document.getElementById('tog-pag-deb')?.classList.contains('on')      === true;
-  db.config.pag_entrega  = document.getElementById('tog-entrega')?.classList.contains('on')      === true;
+  db.config.pag_entrega   = document.getElementById('tog-entrega')?.classList.contains('on')      === true;
+  db.config.repasse_taxa  = document.getElementById('tog-repasse-taxa')?.classList.contains('on') === true;
   db.config.pix_chave    = document.getElementById('cfg-pix-chave')?.value || '';
   db.config.pix_nome     = document.getElementById('cfg-pix-nome')?.value  || '';
   saveDB();
@@ -7672,8 +7728,9 @@ async function salvarPagConfig() {
     pag_pix:      db.config.pag_pix,
     pag_cred:     db.config.pag_cred,
     pag_deb:      db.config.pag_deb,
-    pag_entrega:  db.config.pag_entrega,
-    loja_aberta:  db.config.loja_aberta === true,
+    pag_entrega:   db.config.pag_entrega,
+    repasse_taxa:  db.config.repasse_taxa === true,
+    loja_aberta:   db.config.loja_aberta === true,
   };
 
   try {
@@ -7705,6 +7762,10 @@ function carregarPagConfig() {
   setToggle('tog-pag-cred',     c.pag_cred     === undefined ? false : c.pag_cred     === true);
   setToggle('tog-pag-deb',      c.pag_deb      === undefined ? false : c.pag_deb      === true);
   setToggle('tog-entrega',      c.pag_entrega  === undefined ? true  : c.pag_entrega  === true);
+  setToggle('tog-repasse-taxa', !!c.repasse_taxa);
+  // Mostra/esconde wrap-repasse-taxa conforme credito
+  const wrapTaxa = document.getElementById('wrap-repasse-taxa');
+  if (wrapTaxa) wrapTaxa.style.display = c.pag_cred ? 'flex' : 'none';
   if (c.pix_chave) { const el = document.getElementById('cfg-pix-chave'); if(el) el.value = c.pix_chave; }
   if (c.pix_nome)  { const el = document.getElementById('cfg-pix-nome');  if(el) el.value = c.pix_nome;  }
 
