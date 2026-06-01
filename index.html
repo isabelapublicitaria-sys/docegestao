@@ -3422,7 +3422,11 @@ let sbClient = null;
 function initSupabase(url, key) {
   if (!url || !key) return false;
   try {
-    sbClient = window.supabase.createClient(url, key);
+    sbClient = window.supabase.createClient(url, key, {
+      realtime: {
+        params: { eventsPerSecond: 10 }
+      }
+    });
     return true;
   } catch(e) {
     console.error('Supabase init error:', e);
@@ -7283,9 +7287,18 @@ function iniciarRealtimeVendas() {
       // Mostra notificação
       notificarNovoPedido(venda);
     })
-    .subscribe();
-
-  console.log('🔔 Realtime de vendas ativo');
+    .subscribe((status, err) => {
+      if (status === 'SUBSCRIBED') {
+        console.log('🔔 Realtime ativo — ouvindo novos pedidos');
+      } else if (status === 'CHANNEL_ERROR') {
+        console.error('❌ Realtime erro:', err);
+      } else if (status === 'TIMED_OUT') {
+        console.warn('⏱️ Realtime timeout — reconectando em 5s...');
+        setTimeout(() => iniciarRealtimeVendas(), 5000);
+      } else {
+        console.log('Realtime status:', status);
+      }
+    });
 }
 
 function pararRealtimeVendas() {
