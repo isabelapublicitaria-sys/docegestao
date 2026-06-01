@@ -3313,10 +3313,20 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="venda-edit-id" />
+      <input type="hidden" id="venda-edit-cliente-id" />
       <div class="form-row">
         <div class="form-group">
           <label>Cliente</label>
-          <input type="text" id="venda-edit-cliente" placeholder="Nome do cliente" />
+          <div style="display:flex;gap:6px">
+            <input type="text" id="venda-edit-cliente" placeholder="Nome do cliente" style="flex:1"
+              oninput="filtrarClientesVinculo(this.value)" autocomplete="off" />
+            <button type="button" onclick="desvincularCliente()"
+              title="Desvincular cliente"
+              style="padding:0 10px;background:var(--cream-dark);border:none;border-radius:8px;cursor:pointer;font-size:.85rem;color:var(--text-lt)">✕</button>
+          </div>
+          <!-- Dropdown de sugestões -->
+          <div id="vinculo-clientes-lista" style="display:none;position:absolute;z-index:999;background:white;border:1.5px solid var(--cream-mid);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.1);max-height:180px;overflow-y:auto;width:calc(100% - 32px)"></div>
+          <div id="vinculo-cliente-atual" style="display:none;margin-top:5px;padding:5px 10px;background:var(--mint-light,#e8f5e9);border-radius:7px;font-size:.78rem;color:#2e7d32"></div>
         </div>
         <div class="form-group">
           <label>Status</label>
@@ -5478,7 +5488,13 @@ function filterClientes() {
           </thead>
           <tbody>
             ${clientes.map(c => {
-              const compras = db.vendas.filter(v => v.cliente_id===c.id||(v.cliente_nome&&v.cliente_nome===c.nome));
+              const telC = (c.tel||'').replace(/\D/g,'').slice(-8);
+              const compras = db.vendas.filter(v =>
+                vendaConfirmada(v) && (
+                  v.cliente_id === c.id ||
+                  (v.cliente_nome && v.cliente_nome === c.nome) ||
+                  (telC && v.cliente_tel && v.cliente_tel.replace(/\D/g,'').slice(-8) === telC)
+                ));
               const total   = compras.reduce((s,v)=>s+Number(v.total||0),0);
               const ultima  = compras.length ? new Date(Math.max(...compras.map(v=>new Date(v.data)))).toLocaleDateString('pt-BR') : '—';
               return `<tr style="border-bottom:1px solid var(--cream);cursor:pointer" onclick="verHistoricoCliente('${c.id}')">
@@ -5509,7 +5525,13 @@ function filterClientes() {
 
   cliGrid.className = 'cliente-cards';
   cliGrid.innerHTML = clientes.map(c => {
-    const compras = db.vendas.filter(v => v.cliente_id === c.id || (v.cliente_nome && v.cliente_nome === c.nome));
+    const telC = (c.tel||'').replace(/\D/g,'').slice(-8);
+    const compras = db.vendas.filter(v =>
+      vendaConfirmada(v) && (
+        v.cliente_id === c.id ||
+        (v.cliente_nome && v.cliente_nome === c.nome) ||
+        (telC && v.cliente_tel && v.cliente_tel.replace(/\D/g,'').slice(-8) === telC)
+      ));
     const total   = compras.reduce((s,v) => s+v.total, 0);
     const ultima  = compras.length ? new Date(Math.max(...compras.map(v=>new Date(v.data)))).toLocaleDateString('pt-BR') : null;
     return `
@@ -5561,7 +5583,13 @@ async function verHistoricoCliente(id) {
   } catch(e) {}
 
   // Busca vendas do Supabase para este cliente
-  let compras = db.vendas.filter(v => v.cliente_id === id || v.cliente_nome === c.nome);
+  const telC2 = (c.tel||'').replace(/\D/g,'').slice(-8);
+  let compras = db.vendas.filter(v =>
+    vendaConfirmada(v) && (
+      v.cliente_id === id ||
+      v.cliente_nome === c.nome ||
+      (telC2 && v.cliente_tel && v.cliente_tel.replace(/\D/g,'').slice(-8) === telC2)
+    ));
 
   // Tenta buscar mais do Supabase via REST
   try {
@@ -7709,6 +7737,20 @@ function editarVenda(id) {
   document.getElementById('venda-edit-cliente').value   = v.cliente_nome || '';
   document.getElementById('venda-edit-status').value    = v.status || 'Pago';
   document.getElementById('venda-edit-entregue').checked = !!(v.entregue);
+  document.getElementById('venda-edit-cliente-id').value = v.cliente_id || '';
+  // Mostra badge se já vinculado
+  const badgeVinculo = document.getElementById('vinculo-cliente-atual');
+  const listaVinculo = document.getElementById('vinculo-clientes-lista');
+  if (badgeVinculo) {
+    if (v.cliente_id) {
+      const cl = db.clientes.find(c => c.id === v.cliente_id);
+      badgeVinculo.style.display = 'block';
+      badgeVinculo.textContent = cl ? `✅ Vinculado: ${cl.nome} ${cl.tel ? '· '+cl.tel : ''}` : `✅ Vinculado (id: ${v.cliente_id})`;
+    } else {
+      badgeVinculo.style.display = 'none';
+    }
+  }
+  if (listaVinculo) listaVinculo.style.display = 'none';
   document.getElementById('venda-edit-total').value     = v.total || 0;
   document.getElementById('venda-edit-obs').value       = v.obs || '';
 
@@ -7797,6 +7839,64 @@ function atualizarTotalVendaEdit() {
 }
 
 
+
+// ── VINCULAR CLIENTE À VENDA ─────────────────────────────────
+function filtrarClientesVinculo(busca) {
+  const lista = document.getElementById('vinculo-clientes-lista');
+  if (!lista) return;
+  const q = (busca || '').toLowerCase().trim();
+  if (!q || q.length < 2) { lista.style.display = 'none'; return; }
+
+  const matches = db.clientes
+    .filter(c =>
+      (c.nome||'').toLowerCase().includes(q) ||
+      (c.tel||'').replace(/\D/g,'').includes(q.replace(/\D/g,''))
+    )
+    .slice(0, 8);
+
+  if (!matches.length) { lista.style.display = 'none'; return; }
+
+  lista.style.display = 'block';
+  lista.innerHTML = matches.map(c => `
+    <div onclick="vincularCliente('${c.id}','${(c.nome||'').replace(/'/g,"\'")}','${c.tel||''}')"
+      style="padding:10px 14px;cursor:pointer;font-size:.84rem;border-bottom:1px solid var(--cream-mid)"
+      onmouseover="this.style.background='var(--cream)'" onmouseout="this.style.background='white'">
+      <strong>${c.nome || '—'}</strong>
+      ${c.tel ? `<span style="color:var(--text-lt);font-size:.76rem;margin-left:6px">${c.tel}</span>` : ''}
+      ${(()=>{const compras=db.vendas.filter(v=>v.cliente_id===c.id).length; return compras>0?`<span style="color:var(--caramel);font-size:.72rem;margin-left:6px">${compras} compra(s)</span>`:''})()}
+    </div>`).join('');
+
+  // Fecha ao clicar fora
+  setTimeout(() => {
+    document.addEventListener('click', function fechar(e) {
+      if (!lista.contains(e.target) && e.target.id !== 'venda-edit-cliente') {
+        lista.style.display = 'none';
+        document.removeEventListener('click', fechar);
+      }
+    });
+  }, 100);
+}
+
+function vincularCliente(id, nome, tel) {
+  document.getElementById('venda-edit-cliente-id').value = id;
+  document.getElementById('venda-edit-cliente').value    = nome;
+  document.getElementById('vinculo-clientes-lista').style.display = 'none';
+  const badge = document.getElementById('vinculo-cliente-atual');
+  if (badge) {
+    badge.style.display = 'block';
+    badge.textContent = `✅ Vinculado: ${nome}${tel ? ' · '+tel : ''}`;
+  }
+  toast(`Cliente "${nome}" vinculado à venda`, 'success');
+}
+
+function desvincularCliente() {
+  document.getElementById('venda-edit-cliente-id').value = '';
+  document.getElementById('venda-edit-cliente').value    = '';
+  const badge = document.getElementById('vinculo-cliente-atual');
+  if (badge) badge.style.display = 'none';
+  toast('Cliente desvinculado', 'success');
+}
+
 // ── BAIXA DE ESTOQUE ──────────────────────────────────────────
 // Chamada sempre que uma venda vira "Pago" — PDV, edição manual ou webhook
 async function baixarEstoqueVenda(vendaItens) {
@@ -7845,6 +7945,8 @@ async function salvarVendaEditada() {
 
   const statusAnterior = v.status;
   v.status   = document.getElementById('venda-edit-status').value;
+  const novoClienteId = document.getElementById('venda-edit-cliente-id').value;
+  if (novoClienteId) v.cliente_id = novoClienteId;
   v.entregue = document.getElementById('venda-edit-entregue').checked;
   v.total    = parseFloat(document.getElementById('venda-edit-total').value) || v.total;
   v.obs      = document.getElementById('venda-edit-obs').value;
