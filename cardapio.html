@@ -1892,27 +1892,11 @@ async function confirmarPedido() {
   };
   const base = 'https://uiujarlepzavgxglkhdw.supabase.co/rest/v1';
 
-  // Status inicial: online = "Aguardando pagamento" (carrinho abandonado se não pagar)
-  //                local  = "Aguardando confirmação"
   const isOnline = pagamento === 'online_pix' || pagamento === 'online_cred' || pagamento === 'online';
   const statusInicial = isOnline ? 'Aguardando pagamento' : 'Aguardando confirmação';
 
-  const venda = {
-    id: pedidoId, data: new Date().toISOString(),
-    cliente_nome: nome, cliente_id: '',
-    cliente_tel:  tel  || null,
-    itens: JSON.stringify(cart.map(c => ({ nome:c.nome, qty:c.qty, preco:c.preco }))),
-    total, status: statusInicial,
-    payment_status: isOnline ? 'pending' : null,
-    user_id: LOJA_USER_ID || undefined,
-    obs:          obs          || null,
-    canal:        'cardapio_digital',
-    tipo_entrega: end ? 'entrega' : (tipoEntrega || 'retirada'),
-    endereco_entrega: end || null,
-  };
-
   try {
-    // 1. Busca/cria cliente pelo WhatsApp
+    // 1. Busca/cria cliente PRIMEIRO — antes de montar a venda
     const telLimpo = tel.replace(/\D/g,'');
     let clienteId = '';
     const resBusca = await fetch(
@@ -1923,6 +1907,13 @@ async function confirmarPedido() {
 
     if (clientesFound && clientesFound.length > 0) {
       clienteId = clientesFound[0].id;
+      // Atualiza nome se vier diferente
+      if (clientesFound[0].nome !== nome) {
+        await fetch(`${base}/clientes?id=eq.${clienteId}`, {
+          method: 'PATCH', headers,
+          body: JSON.stringify({ nome }),
+        });
+      }
     } else {
       const novoCliente = {
         id:          `c${Date.now()}`,
@@ -1936,21 +1927,61 @@ async function confirmarPedido() {
         method: 'POST', headers,
         body: JSON.stringify(novoCliente),
       });
-      if (resCli.ok) clienteId = novoCliente.id;
-      else console.warn('Erro cliente:', await resCli.text());
+      if (resCli.ok) {
+        clienteId = novoCliente.id;
+      } else {
+        const errTxt = await resCli.text();
+        console.warn('Erro ao criar cliente (RLS?):', errTxt);
+        // Fallback: tenta upsert via Edge Function com service key
+        try {
+          const sfRes = await fetch(
+            'https://uiujarlepzavgxglkhdw.supabase.co/functions/v1/swift-responder',
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA',
+                'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA',
+              },
+              body: JSON.stringify({ action: 'upsert_cliente', cliente: novoCliente }),
+            }
+          );
+          const sfData = await sfRes.json();
+          if (sfData?.id) clienteId = sfData.id;
+        } catch(e2) { console.warn('Fallback cliente falhou:', e2.message); }
+      }
     }
 
-    // 2. Insere venda (verifica duplicata antes)
+    // 2. Monta venda com clienteId já resolvido
+    const venda = {
+      id: pedidoId, data: new Date().toISOString(),
+      cliente_nome: nome, cliente_id: clienteId,
+      cliente_tel:  tel  || null,
+      itens: JSON.stringify(cart.map(c => ({ nome:c.nome, qty:c.qty, preco:c.preco }))),
+      total, status: statusInicial,
+      payment_status: isOnline ? 'pending' : null,
+      user_id: LOJA_USER_ID || undefined,
+      obs:          obs          || null,
+      canal:        'cardapio_digital',
+      tipo_entrega: end ? 'entrega' : (tipoEntrega || 'retirada'),
+      endereco_entrega: end || null,
+    };
+
+    // 3. Insere venda (verifica duplicata antes)
     const resCheck = await fetch(`${base}/vendas?id=eq.${pedidoId}&select=id`, { headers });
     const jaExiste = resCheck.ok && (await resCheck.json()).length > 0;
     if (!jaExiste) {
       const resVenda = await fetch(`${base}/vendas`, {
         method: 'POST', headers,
-        body: JSON.stringify({ ...venda, cliente_id: clienteId }),
+        body: JSON.stringify(venda),
       });
       if (!resVenda.ok) console.warn('Erro venda:', await resVenda.text());
     } else {
-      console.warn('Venda já existe, ignorando duplicata:', pedidoId);
+      // Venda já existe — atualiza cliente_id se estiver vazio
+      await fetch(`${base}/vendas?id=eq.${pedidoId}&cliente_id=eq.`, {
+        method: 'PATCH', headers,
+        body: JSON.stringify({ cliente_id: clienteId, cliente_nome: nome }),
+      }).catch(()=>{});
     }
 
     // 3. Baixa estoque (só para pagamentos locais — online baixa quando o webhook confirmar)
