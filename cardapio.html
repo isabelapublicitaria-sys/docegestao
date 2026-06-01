@@ -1070,6 +1070,7 @@ let tipoEntrega = 'retirada';
 let pagamento   = 'dinheiro';
 let filtered    = [];
 
+
 // ════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════
@@ -1769,7 +1770,6 @@ function renderPagPanel() {
       </div>`;
 
   } else {
-    // Dinheiro
     el.innerHTML = `
       <div class="pag-panel cash">
         <div class="pag-panel-title" style="color:var(--choco2)">💵 Pagamento em dinheiro</div>
@@ -1863,7 +1863,63 @@ async function confirmarPedido() {
 
   const pagLabels = { dinheiro:'Dinheiro', pix:'Pix', cartao_cred:'Cartão de Crédito', cartao_deb:'Cartão de Débito' };
 
-  // Registro no Supabase
+  // ── Pagamento online: vai direto ao gateway SEM criar venda no banco ──
+  // O webhook do MP/InfinitePay cria a venda após confirmação efetiva do pagamento
+  if (pagamento === 'online_pix' || pagamento === 'online_cred' || pagamento === 'online') {
+    closeCheckout();
+    toast('⏳ Gerando link de pagamento...', 'success');
+    try {
+      const fnUrl = 'https://uiujarlepzavgxglkhdw.supabase.co/functions/v1/create-payment';
+      const mpRes = await fetch(fnUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA',
+          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA',
+        },
+        body: JSON.stringify({
+          user_id:        LOJA_USER_ID,
+          items:          cart.map(c => ({ nome: c.nome, qty: c.qty, preco: c.preco })),
+          total,
+          cliente_nome:   nome,
+          cliente_tel:    tel,
+          cliente_email:  document.getElementById('ck-email')?.value || '',
+          order_ref:      pedidoId,
+          tipo_entrega:   end ? 'entrega' : (tipoEntrega || 'retirada'),
+          endereco:       end || null,
+          obs:            obs || null,
+          payment_method: pagamento === 'online_pix' ? 'pix' : pagamento === 'online_cred' ? 'credit_card' : null,
+        }),
+      });
+      const mpData = await mpRes.json();
+      if (mpData.success && mpData.payment_url) {
+        cart = []; updateCartUI();
+        window.location.href = mpData.payment_url;
+        return;
+      } else {
+        toast('⚠️ Erro ao gerar link: ' + (mpData.error || 'tente novamente'), 'error');
+        btn.disabled = false; btn.textContent = '✓ Confirmar pedido';
+        _pedidoEmAndamento = false;
+        return;
+      }
+    } catch(e) {
+      toast('⚠️ Erro de conexão com o gateway: ' + e.message, 'error');
+      btn.disabled = false; btn.textContent = '✓ Confirmar pedido';
+      _pedidoEmAndamento = false;
+      return;
+    }
+  }
+
+  // ── Pagamentos locais (Pix manual, Dinheiro, Cartão presencial) ──
+  // Nesses casos cria a venda no banco agora
+  const headers = {
+    'Content-Type': 'application/json',
+    'apikey':       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA',
+    'Authorization':'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA',
+    'Prefer':       'return=minimal',
+  };
+  const base = 'https://uiujarlepzavgxglkhdw.supabase.co/rest/v1';
+
   const venda = {
     id: pedidoId, data: new Date().toISOString(),
     cliente_nome: nome, cliente_id: '',
@@ -1877,15 +1933,6 @@ async function confirmarPedido() {
     endereco_entrega: end || null,
   };
 
-  // Usa fetch direto para contornar RLS do cliente anônimo
-  const headers = {
-    'Content-Type': 'application/json',
-    'apikey':       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA',
-    'Authorization':'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA',
-    'Prefer':       'return=minimal',
-  };
-  const base = 'https://uiujarlepzavgxglkhdw.supabase.co/rest/v1';
-
   try {
     // 1. Busca cliente pelo WhatsApp
     const telLimpo = tel.replace(/\D/g,'');
@@ -1898,14 +1945,11 @@ async function confirmarPedido() {
 
     if (clientesFound && clientesFound.length > 0) {
       clienteId = clientesFound[0].id;
-      // console.log('Cliente existente:', clienteId);
     } else {
-      // Cria novo cliente
       const novoCliente = {
         id:          `c${Date.now()}`,
         user_id:     LOJA_USER_ID,
-        nome,
-        tel,
+        nome, tel,
         email:       document.getElementById('ck-email')?.value || '',
         aniversario: document.getElementById('ck-aniversario')?.value || null,
         obs:         'Cadastrado pelo cardápio digital',
@@ -1914,51 +1958,32 @@ async function confirmarPedido() {
         method: 'POST', headers,
         body: JSON.stringify(novoCliente),
       });
-      if (!resCli.ok) {
-        const errTxt = await resCli.text();
-        console.warn('Erro cliente:', errTxt);
-      } else {
-        clienteId = novoCliente.id;
-        console.log('Novo cliente:', clienteId);
-      }
+      if (resCli.ok) clienteId = novoCliente.id;
+      else console.warn('Erro cliente:', await resCli.text());
     }
 
     // 2. Insere venda
-    const vendaPayload = {
-      ...venda,
-      cliente_id:   clienteId,
-      cliente_nome: nome,
-    };
     const resVenda = await fetch(`${base}/vendas`, {
       method: 'POST', headers,
-      body: JSON.stringify(vendaPayload),
+      body: JSON.stringify({ ...venda, cliente_id: clienteId }),
     });
-    if (!resVenda.ok) {
-      const errTxt = await resVenda.text();
-      console.warn('Erro venda:', errTxt);
-      toast('⚠️ Erro ao registrar no sistema: ' + errTxt, '⚠️');
-    } else {
-      // console.log('✅ Venda registrada:', pedidoId);
-    }
+    if (!resVenda.ok) console.warn('Erro venda:', await resVenda.text());
 
-    // 3. Baixa estoque — busca qty atual do banco antes de atualizar
+    // 3. Baixa estoque
     for (const item of cart) {
       try {
-        // Busca qty atual direto do banco
         const resQty = await fetch(
           `${base}/produtos?id=eq.${item.id}&user_id=eq.${LOJA_USER_ID}&select=id,qty`,
           { headers }
         );
         if (resQty.ok) {
           const prodData = await resQty.json();
-          if (prodData && prodData.length > 0) {
-            const qtyAtual = prodData[0].qty || 0;
-            const novaQty  = Math.max(0, qtyAtual - item.qty);
+          if (prodData?.length > 0) {
+            const novaQty = Math.max(0, (prodData[0].qty || 0) - item.qty);
             await fetch(`${base}/produtos?id=eq.${item.id}&user_id=eq.${LOJA_USER_ID}`, {
               method: 'PATCH', headers,
               body: JSON.stringify({ qty: novaQty }),
             });
-            // console.log(`📦 Estoque ${item.nome}: ${qtyAtual} → ${novaQty}`);
           }
         }
       } catch(e) { console.warn('Estoque update:', e.message); }
@@ -1995,48 +2020,6 @@ ${obs ? `\n*Obs:* ${obs}` : ''}
 
   btn.disabled = false; btn.textContent = '✓ Confirmar pedido';
   _pedidoEmAndamento = false;
-
-  // ── Pagamento online: redireciona para MP / InfinitePay ──────
-  if (pagamento === 'online_pix' || pagamento === 'online_cred' || pagamento === 'online') {
-    closeCheckout();
-    toast('⏳ Gerando link de pagamento...', 'success');
-    try {
-      const fnUrl = 'https://uiujarlepzavgxglkhdw.supabase.co/functions/v1/create-payment';
-      const mpRes = await fetch(fnUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA',
-          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA',
-        },
-        body: JSON.stringify({
-          user_id:        LOJA_USER_ID,
-          items:          cart.map(c => ({ nome: c.nome, qty: c.qty, preco: c.preco })),
-          total,
-          cliente_nome:   nome,
-          cliente_tel:    tel,
-          cliente_email:  document.getElementById('ck-email')?.value || '',
-          order_ref:      pedidoId,
-          payment_method: pagamento === 'online_pix' ? 'pix' : pagamento === 'online_cred' ? 'credit_card' : null,
-        }),
-      });
-      const mpData = await mpRes.json();
-      if (mpData.success && mpData.payment_url) {
-        cart = []; updateCartUI();
-        window.location.href = mpData.payment_url; // redireciona para o MP
-        return;
-      } else {
-        toast('⚠️ Erro ao gerar link: ' + (mpData.error || 'tente novamente'), 'error');
-        btn.disabled = false; btn.textContent = '✓ Confirmar pedido';
-        _pedidoEmAndamento = false;
-        return;
-      }
-    } catch(e) {
-      toast('⚠️ Erro de conexão com o gateway: ' + e.message, 'error');
-      btn.disabled = false; btn.textContent = '✓ Confirmar pedido';
-      return;
-    }
-  }
 
   // ── Pagamentos locais (Pix, Dinheiro, Cartão) ────────────────
   closeCheckout();

@@ -1931,7 +1931,7 @@
                     <input type="number" id="prec-lucro" placeholder="40" min="0" oninput="calcPreco()" />
                   </div>
                   <div class="prec-field campo-auto" style="margin:0">
-                    <label>Unidades finais <span style="font-size:.65rem;color:var(--text-lt)">(preenchido automaticamente)</span></label>
+                    <label>Unidades finais <span style="font-size:.65rem;color:var(--text-lt)">(divide mão de obra e custo fixo)</span></label>
                     <input type="number" id="prec-rendimento" placeholder="1" min="1" value="1" oninput="calcPreco()" />
                   </div>
                   <div class="prec-field campo-auto" style="margin:0">
@@ -6108,14 +6108,18 @@ function adicionarReceitaCalc() {
   if (exist) { exist.qtd = qtd; exist.custo = custo; }
   else precKitItens.push({ receita_id: sel.value, nome: opt.text.split(' (rend')[0], qtd, unidade: unid, custo, rend });
 
-  // Preenche automaticamente "Unidades finais" com o rendimento da receita
-  // (só preenche se for produto único, não kit)
+  // Preenche automaticamente "Unidades finais"
+  // - unidade "un" (receita inteira): rendimento = rend da receita (divide mão de obra e fixo)
+  // - unidade "porcao": rendimento = 1 (custo já é por porção, mão de obra é para 1 unidade)
   if (precKitItens.length === 1) {
     const elRend = document.getElementById('prec-rendimento');
     if (elRend) {
-      elRend.value = rend;
-      // Mostra dica
-      toast(`Rendimento preenchido automaticamente: ${rend} unidades`, 'success');
+      if (unid === 'un') {
+        elRend.value = rend;
+        toast(`Rendimento preenchido: ${rend} unidades (receita inteira)`, 'success');
+      } else {
+        elRend.value = 1;
+      }
     }
   }
 
@@ -6162,7 +6166,7 @@ function calcPreco() {
   const fixosManual = parseFloat(document.getElementById('prec-fixos')?.value)||0;
 
   const custoIngTotal = precKitItens.reduce((s,i)=>s+i.custo,0);
-  const custoIngUnit  = custoIngTotal / rendimento;
+  const custoIngUnit  = custoIngTotal; // custo já é por unidade (dividido pelo rendimento ao adicionar)
 
   // ── Mão de obra = Pró-labore ÷ horas/mês × (tempo ÷ 60) ÷ rendimento ──
   const prolabore     = parseFloat(db.config.prolabore)||0;
@@ -6273,7 +6277,7 @@ function calcReverso() {
   const valorHora   = parseFloat(document.getElementById('prec-hora')?.value)||0;
   const fixosManual = parseFloat(document.getElementById('prec-fixos')?.value)||0;
 
-  const custoIngUnit  = precKitItens.reduce((s,i)=>s+i.custo,0) / rendimento;
+  const custoIngUnit  = precKitItens.reduce((s,i)=>s+i.custo,0); // custo já é por unidade
   const maoDeObraUnit = ((tempo/60)*valorHora)/rendimento;
 
   let fixosAuto = fixosManual;
@@ -6317,7 +6321,7 @@ function aplicarPrecoManual() {
   const valorHora   = parseFloat(document.getElementById('prec-hora')?.value)||0;
   const fixosManual = parseFloat(document.getElementById('prec-fixos')?.value)||0;
 
-  const custoIngUnit  = precKitItens.reduce((s,i)=>s+i.custo,0)/rendimento;
+  const custoIngUnit  = precKitItens.reduce((s,i)=>s+i.custo,0); // custo já é por unidade
   const maoDeObraUnit = ((tempo/60)*valorHora)/rendimento;
   let fixosAuto = fixosManual;
   if (!fixosManual) {
@@ -6367,7 +6371,7 @@ function salvarPrecificacao() {
   const pctLucro    = parseFloat(document.getElementById('prec-lucro')?.value)||0;
   const fixosManual = parseFloat(document.getElementById('prec-fixos')?.value)||0;
 
-  const custoIngUnit  = precKitItens.reduce((s,i)=>s+i.custo,0) / rendimento;
+  const custoIngUnit  = precKitItens.reduce((s,i)=>s+i.custo,0); // custo já é por unidade
 
   // Mão de obra: Pró-labore ÷ horas/mês × (tempo ÷ 60) ÷ rendimento
   const prolabore2    = parseFloat(db.config.prolabore)||0;
