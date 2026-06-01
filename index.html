@@ -3933,43 +3933,20 @@ async function getUID() {
 async function syncSupabase(table, record, isDelete = false) {
   try {
     const uid = await getUID();
-    if (!uid) { console.warn('syncSupabase: uid null'); return; }
-
-    // Pega token JWT da sessão atual
-    let authToken = SUPABASE_KEY;
-    if (sbClient) {
-      const { data: sess } = await sbClient.auth.getSession();
-      if (sess?.session?.access_token) authToken = sess.session.access_token;
-    }
-
-    const base  = 'https://uiujarlepzavgxglkhdw.supabase.co/rest/v1';
-    const hdrs  = {
-      'apikey':       SUPABASE_KEY,
-      'Authorization':`Bearer ${authToken}`,
-      'Content-Type': 'application/json',
-      'Prefer':       'resolution=merge-duplicates,return=minimal',
-    };
-
-    if (isDelete) {
-      await fetch(`${base}/${table}?id=eq.${record.id}&user_id=eq.${uid}`,
-        { method: 'DELETE', headers: hdrs });
-      return;
-    }
+    if (!uid || !sbClient) { console.warn('syncSupabase: não autenticado'); return; }
 
     const payload = table === 'vendas'
       ? { ...record, user_id: uid, itens: JSON.stringify(record.itens || []) }
       : { ...record, user_id: uid };
 
-    const res = await fetch(`${base}/${table}`, {
-      method: 'POST',
-      headers: { ...hdrs, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const err = await res.text();
-      console.warn(`syncSupabase ${table} error:`, err);
+    if (isDelete) {
+      await sbClient.from(table).delete().eq('id', record.id).eq('user_id', uid);
+      return;
     }
+
+    // Upsert via SDK — evita bloqueio CORS do fetch direto
+    const { error } = await sbClient.from(table).upsert(payload, { onConflict: 'id' });
+    if (error) console.warn(`syncSupabase ${table} error:`, error.message || error);
   } catch(e) {
     console.warn('Supabase sync error:', e.message);
   }
@@ -5883,45 +5860,36 @@ async function salvarCliente() {
   }
   saveDB();
 
-  // Usa PATCH explícito para update, POST para insert — mais confiável que upsert
+  // Usa sbClient (SDK) — evita bloqueio de CORS/allowlist do Supabase
   try {
-    let authToken = SUPABASE_KEY;
-    if (sbClient) {
-      const { data: sess } = await sbClient.auth.getSession();
-      if (sess?.session?.access_token) authToken = sess.session.access_token;
-    }
-    const uid  = await getUID();
-    const base = 'https://uiujarlepzavgxglkhdw.supabase.co/rest/v1';
-    const hdrs = {
-      'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${authToken}`,
-      'Content-Type': 'application/json', 'Prefer': 'return=minimal',
-    };
+    const uid = await getUID();
+    if (!sbClient || !uid) throw new Error('Não autenticado');
+
     const payload = { ...cl, user_id: uid };
-    let res;
+    let erro;
+
     if (id) {
-      // Cliente existente — PATCH
-      res = await fetch(`${base}/clientes?id=eq.${id}&user_id=eq.${uid}`,
-        { method: 'PATCH', headers: hdrs, body: JSON.stringify(payload) });
+      const { error } = await sbClient.from('clientes').update(payload).eq('id', id).eq('user_id', uid);
+      erro = error;
     } else {
-      // Novo cliente — POST
-      res = await fetch(`${base}/clientes`,
-        { method: 'POST', headers: hdrs, body: JSON.stringify(payload) });
+      const { error } = await sbClient.from('clientes').insert(payload);
+      erro = error;
     }
-    if (!res.ok) {
-      const err = await res.text();
-      console.warn('Erro ao salvar cliente:', err);
-      toast('⚠️ Erro ao salvar no servidor: ' + err.slice(0,80), 'error');
+
+    if (erro) {
+      console.warn('Erro ao salvar cliente:', erro);
+      toast('⚠️ Erro: ' + (erro.message || erro.details || JSON.stringify(erro)), 'error');
       return;
     }
 
-    // Atualiza cliente_nome nas vendas vinculadas no banco
+    // Atualiza cliente_nome nas vendas vinculadas
     if (id) {
-      await fetch(`${base}/vendas?cliente_id=eq.${id}&user_id=eq.${uid}`,
-        { method: 'PATCH', headers: hdrs, body: JSON.stringify({ cliente_nome: nome }) }
-      ).catch(() => {});
+      await sbClient.from('vendas').update({ cliente_nome: nome }).eq('cliente_id', id).eq('user_id', uid);
     }
   } catch(e) {
-    console.warn('salvarCliente fetch:', e.message);
+    console.warn('salvarCliente:', e.message);
+    toast('⚠️ Erro ao salvar: ' + e.message, 'error');
+    return;
   }
 
   closeModal('modal-cliente');
