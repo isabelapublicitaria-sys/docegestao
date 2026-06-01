@@ -972,8 +972,10 @@ body {
       <div id="end-wrap" style="display:none">
         <div class="fld">
           <label>Endereço completo</label>
-          <input type="text" id="ck-end" placeholder="Rua, número, bairro, cidade"
-            oninput="if(this.value.length>3 && tipoEntrega==='retirada') setEntrega('entrega')" />
+          <input type="text" id="ck-end" placeholder="Rua, número, bairro, cidade *"
+            oninput="if(this.value.length>3 && tipoEntrega==='retirada') setEntrega('entrega')"
+            style="border-color:var(--caramel)" />
+          <div style="font-size:.71rem;color:var(--caramel);margin-top:3px">* Obrigatório para entrega</div>
         </div>
       </div>
 
@@ -1149,7 +1151,7 @@ async function loadPerfil() {
   const headers = { 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}` };
 
   // Solicita explicitamente todas as colunas necessárias (RLS pode limitar colunas)
-  const cols = 'user_id,nome,empresa,tel,instagram,endereco,cidade,estado,logo_url,hero_img_url,hero_cor,hero_tipo,loja_aberta,horarios,pix_chave,pix_nome,pag_dinheiro,pag_pix,pag_cred,pag_deb,pag_entrega,payment_gateway,gateway_metodo_pix,gateway_metodo_cred,slug';
+  const cols = 'user_id,nome,empresa,tel,instagram,endereco,cidade,estado,logo_url,hero_img_url,hero_cor,hero_tipo,loja_aberta,horarios,pix_chave,pix_nome,pag_dinheiro,pag_pix,pag_cred,pag_deb,pag_entrega,pag_retirada,payment_gateway,gateway_metodo_pix,gateway_metodo_cred,slug';
   const res = await fetch(
     `https://uiujarlepzavgxglkhdw.supabase.co/rest/v1/perfis?user_id=eq.${LOJA_USER_ID}&select=${cols}&limit=1`,
     { headers }
@@ -1215,6 +1217,15 @@ async function loadPerfil() {
   if (data.pag_entrega === false) {
     document.getElementById('opt-entrega')?.remove();
     tipoEntrega = 'retirada';
+  }
+  if (data.pag_retirada === false) {
+    document.getElementById('opt-retirada')?.remove();
+    // Se retirada desativada mas entrega ativa, muda padrão para entrega
+    if (data.pag_entrega !== false) {
+      tipoEntrega = 'entrega';
+      document.getElementById('opt-entrega')?.classList.add('active');
+      document.getElementById('end-wrap').style.display = 'block';
+    }
   }
 
   // Seleciona primeira opção disponível
@@ -1842,7 +1853,16 @@ async function confirmarPedido() {
 
   if (!nome) { toast('Informe seu nome', '⚠️'); return; }
   if (!tel)  { toast('Informe seu WhatsApp', '⚠️'); return; }
-  if (tipoEntrega === 'entrega' && !end) { toast('Informe o endereço', '⚠️'); return; }
+  if (tipoEntrega === 'entrega' && !end) {
+    const endEl = document.getElementById('ck-end');
+    if (endEl) { endEl.style.borderColor = '#e53935'; endEl.focus(); endEl.scrollIntoView({ behavior:'smooth', block:'center' }); }
+    toast('⚠️ Informe o endereço de entrega', '⚠️');
+    btn.disabled = false; btn.textContent = '✓ Confirmar pedido';
+    _pedidoEmAndamento = false;
+    return;
+  }
+  // Restaura borda ao digitar
+  document.getElementById('ck-end')?.addEventListener('input', function(){ this.style.borderColor = 'var(--caramel)'; }, { once: true });
 
   // Rate limiting — bloqueia pedido duplicado em menos de 30 segundos
   const agora = Date.now();

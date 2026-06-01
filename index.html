@@ -2659,6 +2659,10 @@
               <button class="toggle" id="tog-pag-deb" onclick="togglePagBtn(this)"></button>
             </div>
             <div class="config-field">
+              <div><div class="config-field-label">🏠 Oferecer Retirada</div><div class="config-field-sub">Cliente pode retirar no local</div></div>
+              <button class="toggle on" id="tog-retirada" onclick="togglePagBtn(this)"></button>
+            </div>
+            <div class="config-field">
               <div><div class="config-field-label">🛵 Oferecer Entrega</div><div class="config-field-sub">Exibe campo de endereço no checkout</div></div>
               <button class="toggle on" id="tog-entrega" onclick="togglePagBtn(this)"></button>
             </div>
@@ -3814,6 +3818,7 @@ async function loadUserProfile(user) {
         pag_cred:    false,
         pag_deb:     false,
         pag_entrega: true,
+        pag_retirada: true,
         prolabore:   0,
         horasMes:    160,
       };
@@ -3828,6 +3833,7 @@ async function loadUserProfile(user) {
         pag_cred: false,
         pag_deb: false,
         pag_entrega: true,
+        pag_retirada: true,
       });
     }
 
@@ -5213,27 +5219,35 @@ function gerarCupomHTML(v) {
     <title>Cupom #${String(v.id).slice(-6)}</title>
     <style>
       * { margin:0; padding:0; box-sizing:border-box; }
-      html, body { width:58mm; max-width:58mm; font-family:'Courier New',Courier,monospace; font-size:10pt; color:#000; background:#fff; }
-      body { padding:3mm 2mm; }
-      .linha  { border:none; border-top:1px dashed #000; margin:2.5mm 0; }
-      .logo-wrap { text-align:center; margin-bottom:2mm; }
-      .logo-img { width:22mm; height:22mm; border-radius:50%; object-fit:cover; }
-      .logo-placeholder { width:22mm; height:22mm; border-radius:50%; background:#f0e4ec; display:inline-flex; align-items:center; justify-content:center; font-size:7pt; color:#6B2D5E; font-weight:700; }
-      .empresa { font-size:11pt; font-weight:700; text-align:center; margin-bottom:0.5mm; }
-      .sub     { font-size:8pt; text-align:center; color:#333; line-height:1.5; }
-      .gestta  { text-align:center; margin-top:1.5mm; }
+      html  { width:58mm; }
+      body  { width:54mm; margin:0 auto; padding:4mm 0 8mm 0;
+              font-family:'Courier New',Courier,monospace; font-size:10pt; color:#000; background:#fff; }
+      .linha  { border:none; border-top:1px dashed #000; margin:3mm 0; }
+      .logo-wrap { text-align:center; margin-bottom:3mm; padding-top:2mm; }
+      .logo-img  { width:28mm; height:28mm; border-radius:50%; object-fit:cover; display:block; margin:0 auto; }
+      .logo-placeholder { width:28mm; height:28mm; border-radius:50%; background:#f0e4ec;
+                          display:inline-flex; align-items:center; justify-content:center;
+                          font-size:7pt; color:#6B2D5E; font-weight:700; }
+      .empresa { font-size:11pt; font-weight:700; text-align:center; margin-bottom:1mm; line-height:1.3; }
+      .sub     { font-size:8pt; text-align:center; color:#333; line-height:1.6; }
+      .gestta  { text-align:center; margin:2mm 0 1mm; }
       .pedido  { font-size:11pt; font-weight:700; text-align:center; }
       .data    { font-size:8pt; text-align:center; color:#444; }
-      .bloco   { font-size:9pt; line-height:1.8; }
+      .bloco   { font-size:9pt; line-height:1.9; }
       table    { width:100%; border-collapse:collapse; }
       td       { font-size:9pt; vertical-align:top; padding:0.8mm 0; }
       td.r     { text-align:right; white-space:nowrap; padding-left:2mm; }
       .tot td  { font-size:12pt; font-weight:700; padding-top:2mm; }
-      .pag     { font-size:8pt; margin-top:1mm; }
+      .pag     { font-size:8pt; margin-top:1.5mm; }
       .obs     { font-size:8pt; }
-      .footer  { font-size:7pt; text-align:center; margin-top:1mm; color:#555; }
-      @page    { size:58mm auto; margin:0; }
-      @media print { html,body { width:58mm; } @page { size:58mm auto; margin:0; } }
+      .footer  { font-size:7.5pt; text-align:center; margin-top:2mm; color:#555; line-height:1.8; }
+      .footer-space { height:10mm; }
+      @page    { size:58mm auto; margin:2mm 0 10mm 0; }
+      @media print {
+        html { width:58mm; }
+        body { padding-bottom:12mm; }
+        @page { size:58mm auto; margin:2mm 0 10mm 0; }
+      }
     </style>
   </head><body>
 
@@ -5289,8 +5303,8 @@ function gerarCupomHTML(v) {
 
     <div class="linha"></div>
     <div class="footer">gesttaconfeitaria.com.br</div>
-    <div class="footer">Obrigada pela preferencia!</div>
-    <br><br>
+    <div class="footer">Obrigada pela preferencia! 🍰</div>
+    <div class="footer-space"></div>
   </body></html>`;
 }
 
@@ -5333,26 +5347,39 @@ function imprimirVendaObj(v) {
 }
 
 function aguardarEImprimir(win) {
-  // Aguarda todas as imagens carregarem antes de imprimir
-  win.onload = () => {
-    const imgs = win.document.images;
+  // Função que aguarda imagens e imprime
+  function tentarImprimir() {
+    const imgs = Array.from(win.document.images);
     if (imgs.length === 0) {
-      setTimeout(() => win.print(), 300);
+      setTimeout(() => { try { win.print(); } catch(e){} }, 400);
       return;
     }
+    let pendentes = imgs.filter(img => !img.complete).length;
+    if (pendentes === 0) {
+      // Todas já carregadas
+      setTimeout(() => { try { win.print(); } catch(e){} }, 400);
+      return;
+    }
+    // Aguarda as pendentes
     let loaded = 0;
-    const total = imgs.length;
-    const checkAndPrint = () => {
-      loaded++;
-      if (loaded >= total) setTimeout(() => win.print(), 300);
-    };
-    Array.from(imgs).forEach(img => {
-      if (img.complete) { checkAndPrint(); }
-      else { img.onload = checkAndPrint; img.onerror = checkAndPrint; }
+    imgs.forEach(img => {
+      if (img.complete) return;
+      const done = () => { loaded++; if (loaded >= pendentes) setTimeout(() => { try { win.print(); } catch(e){} }, 400); };
+      img.onload  = done;
+      img.onerror = done;
     });
-    // Fallback: imprime após 3 segundos mesmo se imagem não carregar
-    setTimeout(() => { try { win.print(); } catch(e){} }, 3000);
-  };
+    // Fallback: imprime após 4s mesmo se imagem travar
+    setTimeout(() => { try { win.print(); } catch(e){} }, 4000);
+  }
+
+  // document.write é síncrono; o readyState pode já ser 'complete'
+  if (win.document.readyState === 'complete') {
+    tentarImprimir();
+  } else {
+    win.addEventListener('load', tentarImprimir);
+    // Fallback extra caso o evento load não dispare
+    setTimeout(tentarImprimir, 2000);
+  }
 }
 
 // ══════════════════════════════════════
@@ -7710,6 +7737,7 @@ async function salvarPagConfig() {
   db.config.pag_deb      = document.getElementById('tog-pag-deb')?.classList.contains('on')      === true;
   db.config.pag_entrega   = document.getElementById('tog-entrega')?.classList.contains('on')      === true;
   db.config.repasse_taxa  = document.getElementById('tog-repasse-taxa')?.classList.contains('on') === true;
+  db.config.pag_retirada  = document.getElementById('tog-retirada')?.classList.contains('on') !== false;
   db.config.pix_chave    = document.getElementById('cfg-pix-chave')?.value || '';
   db.config.pix_nome     = document.getElementById('cfg-pix-nome')?.value  || '';
   saveDB();
@@ -7733,6 +7761,7 @@ async function salvarPagConfig() {
     pag_cred:     db.config.pag_cred,
     pag_deb:      db.config.pag_deb,
     pag_entrega:   db.config.pag_entrega,
+    pag_retirada:  db.config.pag_retirada !== false,
     repasse_taxa:  db.config.repasse_taxa === true,
     loja_aberta:   db.config.loja_aberta === true,
   };
@@ -7767,6 +7796,7 @@ function carregarPagConfig() {
   setToggle('tog-pag-deb',      c.pag_deb      === undefined ? false : c.pag_deb      === true);
   setToggle('tog-entrega',      c.pag_entrega  === undefined ? true  : c.pag_entrega  === true);
   setToggle('tog-repasse-taxa', !!c.repasse_taxa);
+  setToggle('tog-retirada',    c.pag_retirada !== false);
   // Mostra/esconde wrap-repasse-taxa conforme credito
   const wrapTaxa = document.getElementById('wrap-repasse-taxa');
   if (wrapTaxa) wrapTaxa.style.display = c.pag_cred ? 'flex' : 'none';
