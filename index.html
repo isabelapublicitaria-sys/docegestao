@@ -3489,6 +3489,7 @@ let sbClient = null;
 
 function initSupabase(url, key) {
   if (!url || !key) return false;
+  if (sbClient) return true; // já inicializado — evita múltiplas instâncias
   try {
     sbClient = window.supabase.createClient(url, key, {
       realtime: {
@@ -8383,7 +8384,7 @@ function salvarPerfil() {
 function salvarSupabaseConfig() { toast('Configuração Supabase gerenciada internamente','success'); }
 
 // Init Supabase silently
-if (SUPABASE_URL && SUPABASE_KEY) initSupabase(SUPABASE_URL, SUPABASE_KEY);
+
 
 // ══════════════════════════════════════
 // INSUMOS
