@@ -1795,7 +1795,8 @@
          CLIENTES
     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
     <section class="page-content" id="page-clientes">
-      <div class="table-toolbar" style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:20px;">
+      <!-- Busca + views -->
+      <div class="table-toolbar" style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:12px;">
         <span style="font-size:1rem">🔍</span>
         <input class="search-input" id="clientes-search" placeholder="Buscar por nome, telefone ou e-mail..." oninput="filterClientes()" />
         <div style="display:flex;gap:4px;background:var(--cream);border-radius:8px;padding:3px;flex-shrink:0">
@@ -1804,6 +1805,50 @@
           <button id="cli-btn-lista" onclick="setClientesView('lista')" title="Lista"
             style="background:none;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:.85rem;color:var(--text-lt)">☰</button>
         </div>
+      </div>
+
+      <!-- Filtros avançados -->
+      <div style="background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 18px;margin-bottom:20px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+        <div style="flex:1;min-width:160px">
+          <div style="font-size:.72rem;font-weight:700;color:var(--text-lt);margin-bottom:5px">🛍️ Produto comprado</div>
+          <input type="text" id="cli-filtro-produto" placeholder="Ex: Bolo de cenoura..."
+            oninput="filterClientes()"
+            style="width:100%;padding:8px 10px;border:2px solid var(--cream-mid);border-radius:8px;font-family:'Comfortaa',sans-serif;font-size:.82rem;outline:none" />
+        </div>
+        <div style="min-width:130px">
+          <div style="font-size:.72rem;font-weight:700;color:var(--text-lt);margin-bottom:5px">📦 Nº de compras</div>
+          <select id="cli-filtro-compras" onchange="filterClientes()"
+            style="width:100%;padding:8px 10px;border:2px solid var(--cream-mid);border-radius:8px;font-family:'Comfortaa',sans-serif;font-size:.82rem;background:var(--white);outline:none">
+            <option value="">Todos</option>
+            <option value="0">Sem compras</option>
+            <option value="1">1 compra</option>
+            <option value="2-5">2 a 5</option>
+            <option value="6+">6 ou mais</option>
+          </select>
+        </div>
+        <div style="min-width:150px">
+          <div style="font-size:.72rem;font-weight:700;color:var(--text-lt);margin-bottom:5px">📅 Última compra</div>
+          <select id="cli-filtro-ultima" onchange="filterClientes()"
+            style="width:100%;padding:8px 10px;border:2px solid var(--cream-mid);border-radius:8px;font-family:'Comfortaa',sans-serif;font-size:.82rem;background:var(--white);outline:none">
+            <option value="">Qualquer data</option>
+            <option value="7">Últimos 7 dias</option>
+            <option value="30">Últimos 30 dias</option>
+            <option value="90">Últimos 90 dias</option>
+            <option value="180">Últimos 6 meses</option>
+            <option value="sem">Nunca comprou</option>
+          </select>
+        </div>
+        <div style="min-width:120px">
+          <div style="font-size:.72rem;font-weight:700;color:var(--text-lt);margin-bottom:5px">↕️ Ordenar por</div>
+          <select id="cli-filtro-ordem" onchange="filterClientes()"
+            style="width:100%;padding:8px 10px;border:2px solid var(--cream-mid);border-radius:8px;font-family:'Comfortaa',sans-serif;font-size:.82rem;background:var(--white);outline:none">
+            <option value="nome">Nome A-Z</option>
+            <option value="compras">Mais compras</option>
+            <option value="total">Maior gasto</option>
+            <option value="recente">Compra recente</option>
+          </select>
+        </div>
+        <button onclick="limparFiltrosClientes()" class="btn-sm ghost" style="font-size:.75rem;align-self:flex-end">✕ Limpar</button>
       </div>
       <div id="clientes-grid">
         <div class="empty-state" style="grid-column:1/-1">
@@ -1866,12 +1911,12 @@
                 <!-- Linha para adicionar receita ao cálculo -->
                 <div style="margin-bottom:10px">
                   <input id="prec-busca-receita" type="text" placeholder="🔍 Buscar receita..." oninput="filtrarReceitasCalc()"
-                    style="width:100%;padding:10px 12px;border:2px solid var(--cream-mid);border-radius:10px;font-family:'Comfortaa',sans-serif;font-size:0.84rem;background:var(--cream);outline:none" />
+                    style="width:100%;padding:10px 12px;border:2px solid var(--cream-mid);border-radius:10px 10px 0 0;font-family:'Comfortaa',sans-serif;font-size:0.84rem;background:var(--cream);outline:none;border-bottom:none" />
                 </div>
                 <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:14px">
                   <div style="flex:2">
                     <div style="font-size:0.73rem;font-weight:700;color:var(--text-lt);margin-bottom:4px">Receita</div>
-                    <select id="prec-sel-receita" style="width:100%;padding:10px 12px;border:2px solid var(--cream-mid);border-radius:10px;font-family:'Comfortaa',sans-serif;font-size:0.84rem;background:var(--cream);outline:none">
+                    <select id="prec-sel-receita" size="5" style="width:100%;padding:4px;border:2px solid var(--cream-mid);border-radius:0 0 10px 10px;font-family:'Comfortaa',sans-serif;font-size:0.84rem;background:var(--cream);outline:none;max-height:140px">
                       <option value="">— Selecione —</option>
                     </select>
                   </div>
@@ -2887,7 +2932,9 @@
           📖 Ficha Técnica vinculada
           <span style="font-size:.68rem;color:var(--text-lt)">(para abate automático de insumos)</span>
         </label>
-        <select id="produto-receita-id" style="width:100%">
+        <input type="text" id="produto-receita-busca" placeholder="🔍 Buscar receita..." oninput="filtrarSelectProdutoReceita()"
+          style="width:100%;padding:9px 12px;border:2px solid var(--cream-mid);border-radius:10px 10px 0 0;font-family:'Comfortaa',sans-serif;font-size:.84rem;outline:none;border-bottom:none" />
+        <select id="produto-receita-id" size="4" style="width:100%;border:2px solid var(--cream-mid);border-radius:0 0 10px 10px;font-family:'Comfortaa',sans-serif;font-size:.84rem;padding:4px;max-height:120px">
           <option value="">— Nenhuma / selecionar depois —</option>
         </select>
       </div>
@@ -3037,7 +3084,9 @@
         <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:12px">
           <div>
             <div style="font-size:0.75rem;font-weight:600;color:var(--text-lt);margin-bottom:4px">Selecionar insumo</div>
-            <select id="receita-insumo-select" style="width:100%;padding:10px 12px;border:2px solid var(--cream-mid);border-radius:10px;font-family:'Comfortaa',sans-serif;font-size:0.85rem;background:var(--white);color:var(--text);outline:none">
+            <input type="text" id="receita-insumo-busca" placeholder="🔍 Buscar insumo..." oninput="filtrarSelectInsumo()"
+              style="width:100%;padding:10px 12px;border:2px solid var(--cream-mid);border-radius:10px 10px 0 0;font-family:'Comfortaa',sans-serif;font-size:0.85rem;background:var(--white);outline:none;border-bottom:none" />
+            <select id="receita-insumo-select" size="5" style="width:100%;padding:4px;border:2px solid var(--cream-mid);border-radius:0 0 10px 10px;font-family:'Comfortaa',sans-serif;font-size:0.84rem;background:var(--white);color:var(--text);outline:none;max-height:140px">
               <option value="">— Escolha um insumo —</option>
             </select>
           </div>
@@ -3316,17 +3365,19 @@
       <input type="hidden" id="venda-edit-cliente-id" />
       <div class="form-row">
         <div class="form-group">
-          <label>Cliente</label>
-          <div style="display:flex;gap:6px">
-            <input type="text" id="venda-edit-cliente" placeholder="Nome do cliente" style="flex:1"
-              oninput="filtrarClientesVinculo(this.value)" autocomplete="off" />
-            <button type="button" onclick="desvincularCliente()"
-              title="Desvincular cliente"
-              style="padding:0 10px;background:var(--cream-dark);border:none;border-radius:8px;cursor:pointer;font-size:.85rem;color:var(--text-lt)">✕</button>
+          <label>Cliente <span style="font-size:.7rem;color:var(--text-lt);font-weight:400">— digite para buscar e vincular</span></label>
+          <div style="position:relative">
+            <div style="display:flex;gap:6px">
+              <input type="text" id="venda-edit-cliente" placeholder="🔍 Buscar cliente por nome ou telefone..." style="flex:1"
+                oninput="filtrarClientesVinculo(this.value)" autocomplete="off" />
+              <button type="button" onclick="desvincularCliente()"
+                title="Limpar"
+                style="padding:0 12px;background:var(--cream-dark);border:none;border-radius:8px;cursor:pointer;font-size:.85rem;color:var(--text-lt)">✕</button>
+            </div>
+            <!-- Dropdown de sugestões -->
+            <div id="vinculo-clientes-lista" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:99999;background:white;border:1.5px solid var(--cream-mid);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.2);max-height:160px;overflow-y:auto;margin-top:4px"></div>
           </div>
-          <!-- Dropdown de sugestões -->
-          <div id="vinculo-clientes-lista" style="display:none;position:absolute;z-index:999;background:white;border:1.5px solid var(--cream-mid);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.1);max-height:180px;overflow-y:auto;width:calc(100% - 32px)"></div>
-          <div id="vinculo-cliente-atual" style="display:none;margin-top:5px;padding:5px 10px;background:var(--mint-light,#e8f5e9);border-radius:7px;font-size:.78rem;color:#2e7d32"></div>
+          <div id="vinculo-cliente-atual" style="display:none;margin-top:6px;padding:6px 12px;background:#e8f5e9;border-radius:8px;font-size:.78rem;color:#2e7d32;font-weight:600"></div>
         </div>
         <div class="form-group">
           <label>Status</label>
@@ -4125,6 +4176,9 @@ function abrirNovoProdutoModal() {
 }
 
 function popularSelectReceitas(receitaIdAtual) {
+  const buscaRec = document.getElementById('produto-receita-busca');
+  if (buscaRec) buscaRec.value = '';
+  filtrarSelectProdutoReceita();
   const sel = document.getElementById('produto-receita-id');
   if (!sel) return;
   sel.innerHTML = '<option value="">— Nenhuma —</option>' +
@@ -4296,9 +4350,15 @@ function _renderDashboardUI() {
     </div>
   `).join('');
 
-  // Top products
+  // Top products — só vendas confirmadas, agrupando variações do mesmo nome
   const prodCount = {};
-  db.vendas.forEach(v => parseItens(v.itens).forEach(i => { prodCount[i.nome] = (prodCount[i.nome]||0) + i.qty * i.preco; }));
+  db.vendas.filter(vendaConfirmada).forEach(v =>
+    parseItens(v.itens).forEach(i => {
+      // Normaliza nome: minúsculo, sem espaços extras — evita duplicatas por capitalização
+      const nomeNorm = (i.nome||'').trim();
+      prodCount[nomeNorm] = (prodCount[nomeNorm]||0) + (i.qty||1) * (i.preco||0);
+    })
+  );
   const sorted = Object.entries(prodCount).sort((a,b) => b[1]-a[1]).slice(0,5);
   const ranks = ['gold','silver','bronze','',''];
   document.getElementById('top-products').innerHTML = sorted.length ? sorted.map(([nome, val], idx) => `
@@ -4312,8 +4372,8 @@ function _renderDashboardUI() {
     </div>
   `).join('') : '<div class="empty-state" style="padding:20px"><p>Faça suas primeiras vendas!</p></div>';
 
-  // Activity
-  const recent = [...db.vendas].sort((a,b) => new Date(b.data)-new Date(a.data)).slice(0,5);
+  // Activity — só vendas confirmadas (exclui aguardando pagamento, canceladas, etc)
+  const recent = [...db.vendas].filter(vendaConfirmada).sort((a,b) => new Date(b.data)-new Date(a.data)).slice(0,5);
   const colors = ['var(--caramel)','var(--rose)','var(--gold)','var(--choco-lt)','var(--caramel-dk)'];
   document.getElementById('activity-list').innerHTML = recent.length ? recent.map((v,i) => `
     <div class="activity-item">
@@ -5453,9 +5513,92 @@ function renderClientes() {
   filterClientes();
 }
 
+function limparFiltrosClientes() {
+  ['clientes-search','cli-filtro-produto','cli-filtro-compras','cli-filtro-ultima','cli-filtro-ordem'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = id === 'cli-filtro-ordem' ? 'nome' : '';
+  });
+  filterClientes();
+}
+
 function filterClientes() {
-  const q = (document.getElementById('clientes-search')?.value || '').toLowerCase();
-  let clientes = db.clientes.filter(c => !q || c.nome.toLowerCase().includes(q) || (c.email||'').toLowerCase().includes(q) || (c.tel||'').includes(q));
+  const q          = (document.getElementById('clientes-search')?.value || '').toLowerCase();
+  const fProduto   = (document.getElementById('cli-filtro-produto')?.value || '').toLowerCase().trim();
+  const fCompras   = document.getElementById('cli-filtro-compras')?.value || '';
+  const fUltima    = document.getElementById('cli-filtro-ultima')?.value || '';
+  const fOrdem     = document.getElementById('cli-filtro-ordem')?.value || 'nome';
+  const agora      = new Date();
+
+  // Pré-calcula compras de todos os clientes uma vez
+  const comprasPorCliente = {};
+  db.clientes.forEach(c => {
+    const telC = (c.tel||'').replace(/\D/g,'').slice(-8);
+    comprasPorCliente[c.id] = db.vendas.filter(v =>
+      vendaConfirmada(v) && (
+        v.cliente_id === c.id ||
+        (v.cliente_nome && v.cliente_nome === c.nome) ||
+        (telC && v.cliente_tel && v.cliente_tel.replace(/\D/g,'').slice(-8) === telC)
+      )
+    );
+  });
+
+  let clientes = db.clientes.filter(c => {
+    // Filtro busca texto
+    if (q && !c.nome.toLowerCase().includes(q) && !(c.email||'').toLowerCase().includes(q) && !(c.tel||'').includes(q)) return false;
+
+    const compras = comprasPorCliente[c.id] || [];
+
+    // Filtro produto comprado
+    if (fProduto) {
+      const comprou = compras.some(v =>
+        (typeof v.itens === 'string' ? JSON.parse(v.itens||'[]') : v.itens||[])
+          .some(i => (i.nome||'').toLowerCase().includes(fProduto))
+      );
+      if (!comprou) return false;
+    }
+
+    // Filtro número de compras
+    if (fCompras) {
+      const n = compras.length;
+      if (fCompras === '0'   && n !== 0)           return false;
+      if (fCompras === '1'   && n !== 1)           return false;
+      if (fCompras === '2-5' && (n < 2 || n > 5)) return false;
+      if (fCompras === '6+'  && n < 6)             return false;
+    }
+
+    // Filtro última compra
+    if (fUltima) {
+      if (fUltima === 'sem') {
+        if (compras.length > 0) return false;
+      } else {
+        const dias = parseInt(fUltima);
+        const limite = new Date(agora - dias * 86400000);
+        const ultima = compras.length
+          ? new Date(Math.max(...compras.map(v => new Date(v.data))))
+          : null;
+        if (!ultima || ultima < limite) return false;
+      }
+    }
+
+    return true;
+  });
+
+  // Ordenação
+  clientes = clientes.sort((a, b) => {
+    if (fOrdem === 'nome')    return (a.nome||'').localeCompare(b.nome||'');
+    if (fOrdem === 'compras') return (comprasPorCliente[b.id]||[]).length - (comprasPorCliente[a.id]||[]).length;
+    if (fOrdem === 'total') {
+      const tA = (comprasPorCliente[a.id]||[]).reduce((s,v)=>s+Number(v.total||0),0);
+      const tB = (comprasPorCliente[b.id]||[]).reduce((s,v)=>s+Number(v.total||0),0);
+      return tB - tA;
+    }
+    if (fOrdem === 'recente') {
+      const dA = (comprasPorCliente[a.id]||[]).length ? Math.max(...(comprasPorCliente[a.id]||[]).map(v=>new Date(v.data))) : 0;
+      const dB = (comprasPorCliente[b.id]||[]).length ? Math.max(...(comprasPorCliente[b.id]||[]).map(v=>new Date(v.data))) : 0;
+      return dB - dA;
+    }
+    return 0;
+  });
 
   const cliView = localStorage.getItem('clientesView') || 'grid';
   const cbg = document.getElementById('cli-btn-grid');
@@ -5488,13 +5631,7 @@ function filterClientes() {
           </thead>
           <tbody>
             ${clientes.map(c => {
-              const telC = (c.tel||'').replace(/\D/g,'').slice(-8);
-              const compras = db.vendas.filter(v =>
-                vendaConfirmada(v) && (
-                  v.cliente_id === c.id ||
-                  (v.cliente_nome && v.cliente_nome === c.nome) ||
-                  (telC && v.cliente_tel && v.cliente_tel.replace(/\D/g,'').slice(-8) === telC)
-                ));
+              const compras = comprasPorCliente[c.id] || [];
               const total   = compras.reduce((s,v)=>s+Number(v.total||0),0);
               const ultima  = compras.length ? new Date(Math.max(...compras.map(v=>new Date(v.data)))).toLocaleDateString('pt-BR') : '—';
               return `<tr style="border-bottom:1px solid var(--cream);cursor:pointer" onclick="verHistoricoCliente('${c.id}')">
@@ -5525,13 +5662,7 @@ function filterClientes() {
 
   cliGrid.className = 'cliente-cards';
   cliGrid.innerHTML = clientes.map(c => {
-    const telC = (c.tel||'').replace(/\D/g,'').slice(-8);
-    const compras = db.vendas.filter(v =>
-      vendaConfirmada(v) && (
-        v.cliente_id === c.id ||
-        (v.cliente_nome && v.cliente_nome === c.nome) ||
-        (telC && v.cliente_tel && v.cliente_tel.replace(/\D/g,'').slice(-8) === telC)
-      ));
+    const compras = comprasPorCliente[c.id] || [];
     const total   = compras.reduce((s,v) => s+v.total, 0);
     const ultima  = compras.length ? new Date(Math.max(...compras.map(v=>new Date(v.data)))).toLocaleDateString('pt-BR') : null;
     return `
@@ -5776,6 +5907,10 @@ function openModalReceita() {
   document.getElementById('receita-preparo').value = '';
   document.getElementById('receita-obs-adicional').value = '';
   document.getElementById('modal-receita-title').textContent = 'Nova Ficha Técnica';
+  // Limpa busca e popula select ao abrir
+  const buscaIns = document.getElementById('receita-insumo-busca');
+  if (buscaIns) buscaIns.value = '';
+  filtrarSelectInsumo();
   popularSelectInsumos();
   renderReceitaInsumoLista();
   openModal('modal-receita');
@@ -6063,6 +6198,9 @@ function editarReceita(id) {
   document.getElementById('receita-preparo').value       = r.preparo||'';
   document.getElementById('receita-obs-adicional').value = r.obs_adicional||'';
   document.getElementById('modal-receita-title').textContent = 'Editar Receita';
+  const buscaInsE = document.getElementById('receita-insumo-busca');
+  if (buscaInsE) buscaInsE.value = '';
+  filtrarSelectInsumo();
   popularSelectInsumos();
   renderReceitaInsumoLista();
   openModal('modal-receita');
@@ -7839,6 +7977,30 @@ function atualizarTotalVendaEdit() {
 }
 
 
+
+
+// ── SELECTS COM BUSCA ────────────────────────────────────────
+
+function filtrarSelectInsumo() {
+  const q   = (document.getElementById('receita-insumo-busca')?.value || '').toLowerCase().trim();
+  const sel = document.getElementById('receita-insumo-select');
+  if (!sel) return;
+  const todos = (db.insumos||[]).slice().sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
+  sel.innerHTML = '<option value="">— Escolha um insumo —</option>' +
+    todos.filter(i => !q || (i.nome||'').toLowerCase().includes(q))
+      .map(i => `<option value="${i.id}">${i.nome} (${i.unidade}) — R$ ${Number(i.custo_unit||0).toFixed(2).replace('.',',')}/${i.unidade}</option>`)
+      .join('');
+}
+
+function filtrarSelectProdutoReceita() {
+  const q   = (document.getElementById('produto-receita-busca')?.value || '').toLowerCase().trim();
+  const sel = document.getElementById('produto-receita-id');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Nenhuma —</option>' +
+    (db.receitas||[]).filter(r => !q || (r.nome||'').toLowerCase().includes(q))
+      .map(r => `<option value="${r.id}">${r.nome}</option>`)
+      .join('');
+}
 
 // ── VINCULAR CLIENTE À VENDA ─────────────────────────────────
 function filtrarClientesVinculo(busca) {
