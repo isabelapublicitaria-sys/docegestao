@@ -8007,26 +8007,39 @@ function filtrarClientesVinculo(busca) {
   const lista = document.getElementById('vinculo-clientes-lista');
   if (!lista) return;
   const q = (busca || '').toLowerCase().trim();
+
+  // Esconde se menos de 2 caracteres
   if (!q || q.length < 2) { lista.style.display = 'none'; return; }
 
-  const matches = db.clientes
-    .filter(c =>
-      (c.nome||'').toLowerCase().includes(q) ||
-      (c.tel||'').replace(/\D/g,'').includes(q.replace(/\D/g,''))
-    )
-    .slice(0, 8);
+  // Filtra só clientes que realmente batem com a busca
+  const qTel = q.replace(/\D/g,'');
+  const matches = db.clientes.filter(c => {
+    const nomeOk = (c.nome||'').toLowerCase().includes(q);
+    const telOk  = qTel.length >= 4 && (c.tel||'').replace(/\D/g,'').includes(qTel);
+    return nomeOk || telOk;
+  }).slice(0, 6);
 
-  if (!matches.length) { lista.style.display = 'none'; return; }
+  if (!matches.length) {
+    lista.style.display = 'block';
+    lista.innerHTML = `<div style="padding:12px 14px;font-size:.82rem;color:var(--text-lt)">Nenhum cliente encontrado</div>`;
+    return;
+  }
 
   lista.style.display = 'block';
-  lista.innerHTML = matches.map(c => `
-    <div onclick="vincularCliente('${c.id}','${(c.nome||'').replace(/'/g,"\'")}','${c.tel||''}')"
-      style="padding:10px 14px;cursor:pointer;font-size:.84rem;border-bottom:1px solid var(--cream-mid)"
+  lista.innerHTML = matches.map(c => {
+    const nomeEsc = (c.nome||'').replace(/'/g,"\'");
+    const telEsc  = (c.tel||'').replace(/'/g,"\'");
+    const compras = db.vendas.filter(v => vendaConfirmada(v) && (v.cliente_id===c.id || v.cliente_tel===c.tel)).length;
+    return `<div onclick="vincularCliente('${c.id}','${nomeEsc}','${telEsc}')"
+      style="padding:9px 14px;cursor:pointer;font-size:.84rem;border-bottom:1px solid var(--cream-mid);display:flex;align-items:center;justify-content:space-between"
       onmouseover="this.style.background='var(--cream)'" onmouseout="this.style.background='white'">
-      <strong>${c.nome || '—'}</strong>
-      ${c.tel ? `<span style="color:var(--text-lt);font-size:.76rem;margin-left:6px">${c.tel}</span>` : ''}
-      ${(()=>{const compras=db.vendas.filter(v=>v.cliente_id===c.id).length; return compras>0?`<span style="color:var(--caramel);font-size:.72rem;margin-left:6px">${compras} compra(s)</span>`:''})()}
-    </div>`).join('');
+      <div>
+        <strong style="color:var(--choco)">${c.nome || '—'}</strong>
+        ${c.tel ? `<span style="color:var(--text-lt);font-size:.76rem;margin-left:8px">${c.tel}</span>` : ''}
+      </div>
+      ${compras > 0 ? `<span style="color:var(--caramel);font-size:.72rem">${compras}x</span>` : ''}
+    </div>`;
+  }).join('');
 
   // Fecha ao clicar fora
   setTimeout(() => {
