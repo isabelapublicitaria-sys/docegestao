@@ -3981,10 +3981,12 @@ function enterApp(user) {
 
   updateDate();
   goTo('dashboard');
+  iniciarRealtimeVendas();
 }
 
 async function doLogout(e) {
   e && e.stopPropagation();
+  pararRealtimeVendas();
   if (sbClient) await sbClient.auth.signOut();
   demoMode = false; demoUser = null;
   document.getElementById('auth-screen').style.display = 'flex';
@@ -4160,6 +4162,17 @@ async function renderDashboard() {
   } catch(e) { console.warn('Dashboard load:', e.message); }
 }
 
+
+// Status que contam como venda efetivada (usados em todos os totais)
+const STATUS_CONFIRMADOS = ['Pago','Confirmado','Aguardando confirmação','pago','confirmado'];
+function vendaConfirmada(v) {
+  const s = (v.status||'').trim();
+  // Exclui explicitamente os não-efetivados
+  if (!s) return true; // sem status = venda do PDV (sempre conta)
+  const excluidos = ['Aguardando pagamento','Cancelado','Cancelada','cancelado','cancelada','failed','Recusado'];
+  return !excluidos.includes(s);
+}
+
 function _renderDashboardUI() {
 
   const now      = new Date();
@@ -4167,8 +4180,9 @@ function _renderDashboardUI() {
   const thisMonth= now.getMonth();
   const thisYear = now.getFullYear();
 
-  const vendasHoje = db.vendas.filter(v => new Date(v.data).toDateString() === todayStr);
+  const vendasHoje = db.vendas.filter(v => vendaConfirmada(v) && new Date(v.data).toDateString() === todayStr);
   const vendasMes  = db.vendas.filter(v => {
+    if (!vendaConfirmada(v)) return false;
     const d = new Date(v.data);
     return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
   });
@@ -4873,6 +4887,7 @@ function renderFinanceiro() {
   const ano = parseInt(anoEl?.value ?? now.getFullYear());
 
   const vendasMes = db.vendas.filter(v => {
+    if (!vendaConfirmada(v)) return false;
     const d = new Date(v.data);
     return d.getMonth() === mes && d.getFullYear() === ano;
   });
@@ -5073,8 +5088,8 @@ function renderVendasStats() {
   const thisMonth= now.getMonth();
   const thisYear = now.getFullYear();
 
-  const hoje    = db.vendas.filter(v => new Date(v.data).toDateString() === todayStr);
-  const mes     = db.vendas.filter(v => { const d=new Date(v.data); return d.getMonth()===thisMonth&&d.getFullYear()===thisYear; });
+  const hoje    = db.vendas.filter(v => vendaConfirmada(v) && new Date(v.data).toDateString() === todayStr);
+  const mes     = db.vendas.filter(v => { if(!vendaConfirmada(v)) return false; const d=new Date(v.data); return d.getMonth()===thisMonth&&d.getFullYear()===thisYear; });
   const aguard  = db.vendas.filter(v => (v.status||'').toLowerCase().includes('aguard') || v.status==='Pendente' || v.status==='Novo');
   const confirm = db.vendas.filter(v => v.status==='Pago'||v.status==='Concluído'||v.status==='Confirmado');
 
@@ -5219,9 +5234,9 @@ function gerarCupomHTML(v) {
     <title>Cupom #${String(v.id).slice(-6)}</title>
     <style>
       * { margin:0; padding:0; box-sizing:border-box; }
-      html  { width:58mm; }
-      body  { width:54mm; margin:0 auto; padding:4mm 0 8mm 0;
-              font-family:'Courier New',Courier,monospace; font-size:10pt; color:#000; background:#fff; }
+      /* Sem width fixo — a impressora usa o papel configurado nela (58mm, 80mm, A4, etc) */
+      html, body { font-family:'Courier New',Courier,monospace; font-size:10pt; color:#000; background:#fff; }
+      body  { padding:4mm 4mm 12mm 4mm; }
       .linha  { border:none; border-top:1px dashed #000; margin:3mm 0; }
       .logo-wrap { text-align:center; margin-bottom:3mm; padding-top:2mm; }
       .logo-img  { width:28mm; height:28mm; border-radius:50%; object-fit:cover; display:block; margin:0 auto; }
@@ -5242,11 +5257,10 @@ function gerarCupomHTML(v) {
       .obs     { font-size:8pt; }
       .footer  { font-size:7.5pt; text-align:center; margin-top:2mm; color:#555; line-height:1.8; }
       .footer-space { height:10mm; }
-      @page    { size:58mm auto; margin:2mm 0 10mm 0; }
+      /* Deixa a impressora decidir o tamanho — não força @page size */
+      @page { margin:4mm 2mm 12mm 2mm; }
       @media print {
-        html { width:58mm; }
-        body { padding-bottom:12mm; }
-        @page { size:58mm auto; margin:2mm 0 10mm 0; }
+        body { padding-bottom:14mm; }
       }
     </style>
   </head><body>
@@ -7081,6 +7095,7 @@ function renderMetas() {
   lista.innerHTML = MESES_NOMES.map((nomeMes, idx) => {
     const mesKey = `${anoFiltro}-${String(idx+1).padStart(2,'0')}`;
     const vendasMes = db.vendas.filter(v => {
+      if (!vendaConfirmada(v)) return false;
       const d = new Date(v.data);
       return d.getFullYear() === anoFiltro && d.getMonth() === idx;
     });
@@ -7154,6 +7169,7 @@ function selecionarMes(mesIdx, ano, silent = false) {
   const metaTotal    = metaFat > 0 ? metaFat : compostoAuto;
 
   const vendasMes = db.vendas.filter(v => {
+    if (!vendaConfirmada(v)) return false;
     const d = new Date(v.data);
     return d.getFullYear() === ano && d.getMonth() === mesIdx;
   });
@@ -7226,6 +7242,130 @@ async function salvarMeta() {
 }
 
 // ══════════════════════════════════════
+// ══════════════════════════════════════
+// REALTIME — NOTIFICAÇÃO DE NOVO PEDIDO
+// ══════════════════════════════════════
+let _realtimeChannel = null;
+let _ultimoIdVenda    = null; // evita notificar ao carregar dados iniciais
+
+function iniciarRealtimeVendas() {
+  if (!sbClient) return;
+  pararRealtimeVendas(); // limpa canal anterior se houver
+
+  const uid = db.config.user_id;
+  if (!uid) return;
+
+  // Marca o id mais recente das vendas já carregadas para não notificar as antigas
+  if (db.vendas && db.vendas.length > 0) {
+    _ultimoIdVenda = db.vendas[0].id || db.vendas[db.vendas.length - 1].id;
+  }
+
+  _realtimeChannel = sbClient
+    .channel('vendas-novas')
+    .on('postgres_changes', {
+      event:  'INSERT',
+      schema: 'public',
+      table:  'vendas',
+      filter: `user_id=eq.${uid}`,
+    }, (payload) => {
+      const venda = payload.new;
+      // Ignora se já estava no banco antes do login
+      if (venda.id === _ultimoIdVenda) return;
+      _ultimoIdVenda = venda.id;
+
+      // Adiciona à memória local e re-renderiza se estiver na página de vendas
+      if (!db.vendas.find(v => v.id === venda.id)) {
+        db.vendas.unshift(venda);
+      }
+      if (currentPage === 'vendas') renderVendas();
+      if (currentPage === 'dashboard') renderDashboard();
+
+      // Mostra notificação
+      notificarNovoPedido(venda);
+    })
+    .subscribe();
+
+  console.log('🔔 Realtime de vendas ativo');
+}
+
+function pararRealtimeVendas() {
+  if (_realtimeChannel && sbClient) {
+    sbClient.removeChannel(_realtimeChannel);
+    _realtimeChannel = null;
+  }
+}
+
+function notificarNovoPedido(venda) {
+  // ── Som ──────────────────────────────────────────────────────
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    // Toca 3 bips alegres
+    [[880, 0], [1108, 0.15], [1320, 0.30]].forEach(([freq, delay]) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine'; osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.35, ctx.currentTime + delay);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.25);
+      osc.start(ctx.currentTime + delay);
+      osc.stop(ctx.currentTime + delay + 0.3);
+    });
+  } catch(e) { /* áudio bloqueado pelo navegador */ }
+
+  // ── Notificação do sistema (se permitido) ────────────────────
+  if (Notification?.permission === 'granted') {
+    const itens = (() => { try { return JSON.parse(venda.itens||'[]').map(i=>`${i.qty}x ${i.nome}`).join(', '); } catch(_){ return ''; } })();
+    new Notification('🍰 Novo pedido — Gestta', {
+      body: `${venda.cliente_nome || 'Cliente'} • ${formatMoney(venda.total)}${itens ? '\n' + itens : ''}`,
+      icon: '/gestta-logo.png',
+    });
+  }
+
+  // ── Banner visual no topo ────────────────────────────────────
+  const itensStr = (() => { try { return JSON.parse(venda.itens||'[]').map(i=>`${i.qty}x ${i.nome}`).join(' · '); } catch(_){ return ''; } })();
+  const banner = document.createElement('div');
+  banner.id = 'notif-pedido-' + venda.id;
+  banner.style.cssText = `
+    position:fixed; top:16px; right:16px; z-index:99999;
+    background:linear-gradient(135deg,#6B2D5E,#D4587A);
+    color:#fff; border-radius:14px; padding:14px 18px;
+    box-shadow:0 8px 32px rgba(107,45,94,.45);
+    font-family:'Comfortaa',sans-serif; font-size:.88rem;
+    max-width:300px; cursor:pointer;
+    animation: slideInNotif .35s cubic-bezier(.34,1.56,.64,1);
+  `;
+  banner.innerHTML = `
+    <div style="font-weight:700;font-size:1rem;margin-bottom:4px">🛍️ Novo pedido!</div>
+    <div style="opacity:.92">${venda.cliente_nome || 'Cliente'} — <strong>${formatMoney(venda.total)}</strong></div>
+    ${itensStr ? `<div style="opacity:.75;font-size:.78rem;margin-top:3px">${itensStr}</div>` : ''}
+    <div style="opacity:.65;font-size:.72rem;margin-top:6px">Clique para ver o histórico</div>
+  `;
+  banner.onclick = () => { goTo('vendas'); banner.remove(); };
+
+  // Adiciona animação CSS se ainda não existir
+  if (!document.getElementById('notif-style')) {
+    const st = document.createElement('style');
+    st.id = 'notif-style';
+    st.textContent = `
+      @keyframes slideInNotif {
+        from { opacity:0; transform:translateX(120px) scale(.85); }
+        to   { opacity:1; transform:translateX(0) scale(1); }
+      }
+    `;
+    document.head.appendChild(st);
+  }
+
+  document.body.appendChild(banner);
+
+  // Remove automaticamente após 8 segundos
+  setTimeout(() => banner.remove(), 8000);
+
+  // Pede permissão de notificação na primeira vez
+  if (Notification?.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
 // CONFIGURAÇÕES
 // ══════════════════════════════════════
 async function salvarConfig() {
