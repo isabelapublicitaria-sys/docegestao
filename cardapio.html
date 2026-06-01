@@ -1863,55 +1863,7 @@ async function confirmarPedido() {
 
   const pagLabels = { dinheiro:'Dinheiro', pix:'Pix', cartao_cred:'Cartão de Crédito', cartao_deb:'Cartão de Débito' };
 
-  // ── Pagamento online: vai direto ao gateway SEM criar venda no banco ──
-  // O webhook do MP/InfinitePay cria a venda após confirmação efetiva do pagamento
-  if (pagamento === 'online_pix' || pagamento === 'online_cred' || pagamento === 'online') {
-    closeCheckout();
-    toast('⏳ Gerando link de pagamento...', 'success');
-    try {
-      const fnUrl = 'https://uiujarlepzavgxglkhdw.supabase.co/functions/v1/create-payment';
-      const mpRes = await fetch(fnUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA',
-          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA',
-        },
-        body: JSON.stringify({
-          user_id:        LOJA_USER_ID,
-          items:          cart.map(c => ({ nome: c.nome, qty: c.qty, preco: c.preco })),
-          total,
-          cliente_nome:   nome,
-          cliente_tel:    tel,
-          cliente_email:  document.getElementById('ck-email')?.value || '',
-          order_ref:      pedidoId,
-          tipo_entrega:   end ? 'entrega' : (tipoEntrega || 'retirada'),
-          endereco:       end || null,
-          obs:            obs || null,
-          payment_method: pagamento === 'online_pix' ? 'pix' : pagamento === 'online_cred' ? 'credit_card' : null,
-        }),
-      });
-      const mpData = await mpRes.json();
-      if (mpData.success && mpData.payment_url) {
-        cart = []; updateCartUI();
-        window.location.href = mpData.payment_url;
-        return;
-      } else {
-        toast('⚠️ Erro ao gerar link: ' + (mpData.error || 'tente novamente'), 'error');
-        btn.disabled = false; btn.textContent = '✓ Confirmar pedido';
-        _pedidoEmAndamento = false;
-        return;
-      }
-    } catch(e) {
-      toast('⚠️ Erro de conexão com o gateway: ' + e.message, 'error');
-      btn.disabled = false; btn.textContent = '✓ Confirmar pedido';
-      _pedidoEmAndamento = false;
-      return;
-    }
-  }
-
-  // ── Pagamentos locais (Pix manual, Dinheiro, Cartão presencial) ──
-  // Nesses casos cria a venda no banco agora
+  // ── Headers e base Supabase (usado por online e local) ──────
   const headers = {
     'Content-Type': 'application/json',
     'apikey':       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA',
@@ -1920,12 +1872,18 @@ async function confirmarPedido() {
   };
   const base = 'https://uiujarlepzavgxglkhdw.supabase.co/rest/v1';
 
+  // Status inicial: online = "Aguardando pagamento" (carrinho abandonado se não pagar)
+  //                local  = "Aguardando confirmação"
+  const isOnline = pagamento === 'online_pix' || pagamento === 'online_cred' || pagamento === 'online';
+  const statusInicial = isOnline ? 'Aguardando pagamento' : 'Aguardando confirmação';
+
   const venda = {
     id: pedidoId, data: new Date().toISOString(),
     cliente_nome: nome, cliente_id: '',
     cliente_tel:  tel  || null,
     itens: JSON.stringify(cart.map(c => ({ nome:c.nome, qty:c.qty, preco:c.preco }))),
-    total, status: 'Aguardando confirmação',
+    total, status: statusInicial,
+    payment_status: isOnline ? 'pending' : null,
     user_id: LOJA_USER_ID || undefined,
     obs:          obs          || null,
     canal:        'cardapio_digital',
@@ -1934,7 +1892,7 @@ async function confirmarPedido() {
   };
 
   try {
-    // 1. Busca cliente pelo WhatsApp
+    // 1. Busca/cria cliente pelo WhatsApp
     const telLimpo = tel.replace(/\D/g,'');
     let clienteId = '';
     const resBusca = await fetch(
@@ -1962,14 +1920,76 @@ async function confirmarPedido() {
       else console.warn('Erro cliente:', await resCli.text());
     }
 
-    // 2. Insere venda
-    const resVenda = await fetch(`${base}/vendas`, {
-      method: 'POST', headers,
-      body: JSON.stringify({ ...venda, cliente_id: clienteId }),
-    });
-    if (!resVenda.ok) console.warn('Erro venda:', await resVenda.text());
+    // 2. Insere venda (verifica duplicata antes)
+    const resCheck = await fetch(`${base}/vendas?id=eq.${pedidoId}&select=id`, { headers });
+    const jaExiste = resCheck.ok && (await resCheck.json()).length > 0;
+    if (!jaExiste) {
+      const resVenda = await fetch(`${base}/vendas`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ ...venda, cliente_id: clienteId }),
+      });
+      if (!resVenda.ok) console.warn('Erro venda:', await resVenda.text());
+    } else {
+      console.warn('Venda já existe, ignorando duplicata:', pedidoId);
+    }
 
-    // 3. Baixa estoque
+    // 3. Baixa estoque (só para pagamentos locais — online baixa quando o webhook confirmar)
+    if (isOnline) {
+      // Redireciona ao gateway após registrar a venda como "Aguardando pagamento"
+      closeCheckout();
+      toast('⏳ Gerando link de pagamento...', 'success');
+      try {
+        const fnUrl = 'https://uiujarlepzavgxglkhdw.supabase.co/functions/v1/create-payment';
+        const mpRes = await fetch(fnUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA',
+            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA',
+          },
+          body: JSON.stringify({
+            user_id:        LOJA_USER_ID,
+            items:          cart.map(c => ({ nome: c.nome, qty: c.qty, preco: c.preco })),
+            total,
+            cliente_nome:   nome,
+            cliente_tel:    tel,
+            cliente_email:  document.getElementById('ck-email')?.value || '',
+            order_ref:      pedidoId,
+            tipo_entrega:   end ? 'entrega' : (tipoEntrega || 'retirada'),
+            endereco:       end || null,
+            obs:            obs || null,
+            payment_method: pagamento === 'online_pix' ? 'pix' : 'credit_card',
+          }),
+        });
+        const mpData = await mpRes.json();
+        if (mpData.success && mpData.payment_url) {
+          cart = []; updateCartUI();
+          window.location.href = mpData.payment_url;
+          return;
+        } else {
+          // Falhou — atualiza a venda para cancelado e mostra erro
+          await fetch(`${base}/vendas?id=eq.${pedidoId}`, {
+            method: 'PATCH', headers,
+            body: JSON.stringify({ status: 'Cancelado', payment_status: 'failed' }),
+          });
+          toast('⚠️ Erro ao gerar link: ' + (mpData.error || 'tente novamente'), 'error');
+          btn.disabled = false; btn.textContent = '✓ Confirmar pedido';
+          _pedidoEmAndamento = false;
+          return;
+        }
+      } catch(e) {
+        await fetch(`${base}/vendas?id=eq.${pedidoId}`, {
+          method: 'PATCH', headers,
+          body: JSON.stringify({ status: 'Cancelado', payment_status: 'failed' }),
+        }).catch(()=>{});
+        toast('⚠️ Erro de conexão com o gateway: ' + e.message, 'error');
+        btn.disabled = false; btn.textContent = '✓ Confirmar pedido';
+        _pedidoEmAndamento = false;
+        return;
+      }
+    }
+
+    // 3. Baixa estoque (pagamentos locais)
     for (const item of cart) {
       try {
         const resQty = await fetch(
