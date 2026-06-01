@@ -1896,60 +1896,36 @@ async function confirmarPedido() {
   const statusInicial = isOnline ? 'Aguardando pagamento' : 'Aguardando confirmação';
 
   try {
-    // 1. Busca/cria cliente PRIMEIRO — antes de montar a venda
-    const telLimpo = tel.replace(/\D/g,'');
+    // 1. Busca/cria cliente via Edge Function (service key — bypassa RLS)
     let clienteId = '';
-    const resBusca = await fetch(
-      `${base}/clientes?user_id=eq.${LOJA_USER_ID}&tel=ilike.*${telLimpo.slice(-8)}*&select=id,nome&limit=1`,
-      { headers }
-    );
-    const clientesFound = await resBusca.json();
-
-    if (clientesFound && clientesFound.length > 0) {
-      clienteId = clientesFound[0].id;
-      // Atualiza nome se vier diferente
-      if (clientesFound[0].nome !== nome) {
-        await fetch(`${base}/clientes?id=eq.${clienteId}`, {
-          method: 'PATCH', headers,
-          body: JSON.stringify({ nome }),
-        });
-      }
-    } else {
-      const novoCliente = {
-        id:          `c${Date.now()}`,
-        user_id:     LOJA_USER_ID,
-        nome, tel,
-        email:       document.getElementById('ck-email')?.value || '',
-        aniversario: document.getElementById('ck-aniversario')?.value || null,
-        obs:         'Cadastrado pelo cardápio digital',
-      };
-      const resCli = await fetch(`${base}/clientes`, {
-        method: 'POST', headers,
-        body: JSON.stringify(novoCliente),
-      });
-      if (resCli.ok) {
-        clienteId = novoCliente.id;
+    try {
+      const ucRes = await fetch(
+        'https://uiujarlepzavgxglkhdw.supabase.co/functions/v1/smart-service',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey':       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA',
+            'Authorization':'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA',
+          },
+          body: JSON.stringify({
+            user_id:     LOJA_USER_ID,
+            nome,
+            tel,
+            email:       document.getElementById('ck-email')?.value || '',
+            aniversario: document.getElementById('ck-aniversario')?.value || null,
+          }),
+        }
+      );
+      const ucData = await ucRes.json();
+      if (ucData?.id) {
+        clienteId = ucData.id;
+        console.log(ucData.criado ? '✅ Cliente criado:' : '✅ Cliente encontrado:', clienteId);
       } else {
-        const errTxt = await resCli.text();
-        console.warn('Erro ao criar cliente (RLS?):', errTxt);
-        // Fallback: tenta upsert via Edge Function com service key
-        try {
-          const sfRes = await fetch(
-            'https://uiujarlepzavgxglkhdw.supabase.co/functions/v1/swift-responder',
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA',
-                'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWphcmxlcHphdmd4Z2xraGR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2ODk0ODMsImV4cCI6MjA5NDI2NTQ4M30.TZQB1flYrdIGPjOCtBWRBZnvRkQhYMsMlMwvDn6GrDA',
-              },
-              body: JSON.stringify({ action: 'upsert_cliente', cliente: novoCliente }),
-            }
-          );
-          const sfData = await sfRes.json();
-          if (sfData?.id) clienteId = sfData.id;
-        } catch(e2) { console.warn('Fallback cliente falhou:', e2.message); }
+        console.warn('upsert-cliente sem id:', ucData);
       }
+    } catch(e) {
+      console.warn('upsert-cliente erro:', e.message);
     }
 
     // 2. Monta venda com clienteId já resolvido
