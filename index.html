@@ -7768,6 +7768,39 @@ function atualizarTotalVendaEdit() {
   document.getElementById('venda-edit-total').value = total.toFixed(2);
 }
 
+
+// ── BAIXA DE ESTOQUE ──────────────────────────────────────────
+// Chamada sempre que uma venda vira "Pago" — PDV, edição manual ou webhook
+async function baixarEstoqueVenda(vendaItens) {
+  const uid = await getUID();
+  if (!uid) return;
+  const itens = Array.isArray(vendaItens)
+    ? vendaItens
+    : (() => { try { return JSON.parse(vendaItens||'[]'); } catch(_){ return []; } })();
+
+  for (const item of itens) {
+    if (!item.nome) continue;
+    // Busca produto em memória primeiro
+    const prod = db.produtos?.find(p =>
+      (p.nome||'').toLowerCase().trim() === (item.nome||'').toLowerCase().trim()
+    );
+    if (!prod) continue;
+    const novaQty = Math.max(0, (prod.qty || 0) - (item.qty || 1));
+    prod.qty = novaQty;
+    // Persiste no Supabase
+    try {
+      const h = await getHeaders({ Prefer: 'return=minimal' });
+      await fetch(
+        `${SUPABASE_URL}/rest/v1/produtos?id=eq.${prod.id}&user_id=eq.${uid}`,
+        { method: 'PATCH', headers: h, body: JSON.stringify({ qty: novaQty }) }
+      );
+      console.log(`📦 Estoque "${item.nome}": → ${novaQty}`);
+    } catch(e) { console.warn('baixarEstoque:', e.message); }
+  }
+  // Re-renderiza cardápio se estiver na página
+  if (currentPage === 'estoque') renderEstoque();
+}
+
 async function salvarVendaEditada() {
   const id = document.getElementById('venda-edit-id').value;
   const v  = db.vendas.find(x => x.id === id);
@@ -7782,6 +7815,7 @@ async function salvarVendaEditada() {
     v.cliente_nome = novoNome;
   }
 
+  const statusAnterior = v.status;
   v.status   = document.getElementById('venda-edit-status').value;
   v.total    = parseFloat(document.getElementById('venda-edit-total').value) || v.total;
   v.obs      = document.getElementById('venda-edit-obs').value;
@@ -7794,6 +7828,14 @@ async function salvarVendaEditada() {
 
   saveDB();
   await syncSupabase('vendas', { ...v, itens: JSON.stringify(v.itens) });
+
+  // Baixa estoque quando venda passa a ser Pago pela primeira vez
+  const statusPago = ['Pago','Concluído','Confirmado'];
+  const eraConfirmado = statusPago.includes(statusAnterior);
+  const viroupago    = statusPago.includes(v.status);
+  if (viroupago && !eraConfirmado) {
+    await baixarEstoqueVenda(v.itens);
+  }
 
   closeModal('modal-venda');
   filterVendas();
@@ -7859,13 +7901,10 @@ async function registrarVendaCardapio(payload) {
     obs:          obs || '',
   };
   db.vendas.push(venda);
-  // Baixa estoque
-  (itens||[]).forEach(item => {
-    const p = db.produtos.find(x => x.nome === item.nome || x.id === item.id);
-    if (p) p.qty = Math.max(0, (p.qty||0) - item.qty);
-  });
   saveDB();
   await syncSupabase('vendas', { ...venda, itens: JSON.stringify(venda.itens) });
+  // Baixa estoque via função centralizada (persiste no Supabase)
+  await baixarEstoqueVenda(itens);
   if (currentPage === 'vendas') filterVendas();
   if (currentPage === 'clientes') renderClientes();
 }
